@@ -1,0 +1,8 @@
+target/*
+extraction/target/*
+commons/target/*
+*.iml
+.idea/*
+*.*~
+commons/src/main/resources/conf/conf.properties
+
