@@ -18,20 +18,20 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
-
-
 import io.sanfran.wikiTrends.Config
 import io.sanfran.wikiTrends.extraction.WikiUtils
+
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.api.scala.DataSet
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.regression.MultipleLinearRegression
 
 import org.joda.time._
 
 import org.apache.flink.api.scala._
-
+import org.apache.flink.api.scala.DataSet
 
 case class DataHourId(logVisits: Double, hourId: Long)
 
@@ -44,12 +44,15 @@ case class DataHourIdM48(hourId: Long, logVisits: Double, logVisits1: Double, lo
 object Regression extends App {
 
   model(Config.get("Obama.sample.path"))
-
+  
   def model(pageFile : String) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = WikiUtils.readWikiTrafficCSV(pageFile)
+    
+    
+    
     
     val startDate = data.reduce { (a,b) => 
       var result: WikiTrafficID = a
@@ -83,7 +86,8 @@ object Regression extends App {
 
         val differenceHours = Hours.hoursBetween(beginDate, currentDate).getHours.toLong
 
-        new DataHourId(Math.log(t.requestNumber), differenceHours)
+        //new DataHourId(Math.log(t.requestNumber), differenceHours)
+        new DataHourId(t.requestNumber, differenceHours)
         
       }
     }).withBroadcastSet(startDate, "startDate")
@@ -101,20 +105,53 @@ object Regression extends App {
               .join(dataM24).where("hourId").equalTo("hourId") { (d,d24) => new DataHourIdM24(d.hourId, d.logVisits, d.logVisits1, d.logVisits2, d.logVisits3, d24.logVisits)}
               .join(dataM48).where("hourId").equalTo("hourId") { (d,d48) => new RegressionData(d.logVisits, d.logVisits1, d.logVisits2, d.logVisits3, d.logVisits24, d48.logVisits)}
   
-    regressionData.print()
+    //regressionData.print()
 
-    /*
+
+    val trainingDS = regressionData.map { t => 
+      val x = new Array[Double](5)
+      x(0) = t.oneHourAgo
+      x(1) = t.twoHoursAgo
+      x(2) = t.threeHoursAgo
+      x(3) = t.twentyFourHoursAgo
+      x(4) = t.fourtyEightHoursAgo
+      
+      new LabeledVector(t.y, new DenseVector(x))
+    }
+    
+    trainingDS.print
+    
+    val testDS = regressionData.map { t =>
+      val x = new Array[Double](5)
+      x(0) = t.oneHourAgo
+      x(1) = t.twoHoursAgo
+      x(2) = t.threeHoursAgo
+      x(3) = t.twentyFourHoursAgo
+      x(4) = t.fourtyEightHoursAgo
+
+      new DenseVector(x)
+    }
 
     val mlr = MultipleLinearRegression()
                    .setIterations(10)
                    .setStepsize(0.5)
-                   .setConvergenceThreshold(0.001)
+                   .setConvergenceThreshold(0.01)
+                   
     
-    val trainingDS: DataSet[LabeledVector] = ...
     mlr.fit(trainingDS)
+
+    val weightList = mlr.weightsOption.get.collect()
+
+    val a = weightList(0)
     
-    val predictions = mlr.predict(trainingDS)
-    */
+    val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
+
+    println("Squared error: " + srs)
+    
+    val predictions = mlr.predict(testDS)
+    
+    predictions.print //strange results !!!
+    
   }
 
 }

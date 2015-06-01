@@ -81,14 +81,18 @@ object Downloader extends App {
     var tupleList = new mutable.MutableList[WikiTrafficID]()
     
     //start with 2007
-    for (year <- 2009 until 2015) {
-      for (month <- 1 until 12) {
-        for (day <- 1 until 31) {
+    for (year <- 2008 to 2015) {
+      var startMonth = 1
+      if (year == 2007) {
+        startMonth = 12
+      }
+      for (month <-  startMonth to 12) {
+        for (day <- 1 to 31) {
           val dayS = String.format("%02d", day: Integer)
           val monthS = String.format("%02d", month: Integer)
           
           if (dateIsValid(dayS + "/" + monthS + "/" + year)) {
-            for (hour <- 0 until 23) {
+            for (hour <- 0 to 23) {
               val hourS = String.format("%02d", hour: Integer)
               
               var found : Boolean = false
@@ -98,6 +102,8 @@ object Downloader extends App {
 
                 val file = "pagecounts-" + year + monthS + dayS + "-" + hourS + versionS + ".gz"
                 val url = "http://dumps.wikimedia.org/other/pagecounts-raw/" + year + "/" + year + "-" + monthS + "/" + file
+                
+                println(file)
                 
                 try {
                   val fileF = new File("/tmp/new/" + file)
@@ -111,13 +117,19 @@ object Downloader extends App {
                 }
                 
                 version = version + 1
+                if (version == 10) {
+                  found = true
+                }
               }
               //run flink job after each batch of 10 files
               if (count % batchSize == 0) {
+                println ("starting flink")
                 val traffic = WikiUtils.readWikiTrafficID("/tmp/new/")
                 val filtered = traffic.filter { t => t.pageTitle.equals("Barack_Obama") && t.projectName.equals("en") }
 
                 filtered.writeAsCsv("/tmp/resultWiki/csv" + (count / batchSize), fieldDelimiter = "\t", writeMode = WriteMode.OVERWRITE)
+
+                env.execute()
 
                 val files = new File("/tmp/new/").listFiles()
                 for (f <- files) {
