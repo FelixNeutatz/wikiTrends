@@ -18,7 +18,7 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
-import java.io.{File, PrintWriter}
+import java.io.File
 import java.net.URL
 import java.util.Date
 

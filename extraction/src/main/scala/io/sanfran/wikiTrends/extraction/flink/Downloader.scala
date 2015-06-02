@@ -27,9 +27,7 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala._
 
 import java.net.URL
-import java.io.{PrintWriter, File}
-
-import org.apache.flink.core.fs.FileSystem.WriteMode
+import java.io.File
 
 
 object Downloader extends App {
