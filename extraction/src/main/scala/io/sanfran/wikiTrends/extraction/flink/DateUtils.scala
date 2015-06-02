@@ -18,10 +18,15 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
-case class Time(year: Short, month: Byte, day: Byte, hour: Byte)
+import java.util.Date
+import java.util.Calendar
 
-case class WikiTraffic(projectName: String, pageTitle: String, requestNumber: Long, contentSize: Long, time: Time)
+object DateUtils {
 
-case class WikiTrafficID(projectName: String, pageTitle: String, requestNumber: Long, contentSize: Long, year: Short, month: Byte, day: Byte, hour: Byte)
-
-case class RegressionData(y: Double, oneHourAgo: Double, twoHoursAgo: Double, threeHoursAgo: Double, twentyFourHoursAgo: Double, fourtyEightHoursAgo : Double)
+  def addDays(date: Date, days: Integer): Date = {
+    val cal = Calendar.getInstance();
+    cal.setTime(date);
+    cal.add(Calendar.DATE, days);
+    return cal.getTime();
+  }
+}

@@ -11,14 +11,19 @@
 
   <artifactId>commons</artifactId>
 
-  <dependencies>    
+  <dependencies>
+      <dependency>
+          <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
+          <version>0.9.1</version>
+      </dependency>
   </dependencies>
 
   <pluginRepositories>
-    <pluginRepository>
-      <id>protoc-plugin</id>
-      <url>http://sergei-ivanov.github.com/maven-protoc-plugin/repo/releases/</url>
-    </pluginRepository>
+      <pluginRepository>
+          <id>dtrott</id>
+          <url>http://maven.davidtrott.com/repository</url>
+      </pluginRepository>
   </pluginRepositories>
   
   <build>
@@ -56,23 +61,31 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>com.google.protobuf.tools</groupId>
-        <artifactId>maven-protoc-plugin</artifactId>
-        <version>0.3.2</version>
-        <configuration>
-          <!-- configure here if the plugin doesn't find the protoc executable
-          <protocExecutable>/usr/bin/protoc</protocExecutable> -->
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+        <plugin>
+            <groupId>org.apache.thrift.tools</groupId>
+            <artifactId>maven-thrift-plugin</artifactId>
+            <version>0.1.10</version>
+            <configuration>
+                <!--
+                <thriftExecutable>C:\Dev\thrift-0.9.1\thrift-0.9.1.exe</thriftExecutable> -->
+            </configuration>
+            <executions>
+                <execution>
+                    <id>thrift-sources</id>
+                    <phase>generate-sources</phase>
+                    <goals>
+                        <goal>compile</goal>
+                    </goals>
+                </execution>
+                <execution>
+                    <id>thrift-test-sources</id>
+                    <phase>generate-test-sources</phase>
+                    <goals>
+                        <goal>testCompile</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
     </plugins>
   </build>
 

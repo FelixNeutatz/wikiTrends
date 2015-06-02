@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.mapred.{FileInputFormat, TextInputFormat, JobConf}
 
+
 object WikiUtils {
 
   def readWikiTrafficID(file: String)(implicit env: ExecutionEnvironment) = {
@@ -52,7 +53,7 @@ object WikiUtils {
     lines.map { line =>
       val columns = line._2.toString.split("\t")
       
-      new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toShort, columns(6).toShort, columns(7).toShort) }
+      new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toByte, columns(6).toByte, columns(7).toByte) }
   }
 
   def readWikiTraffic(file: String)(implicit env: ExecutionEnvironment) = {
@@ -73,9 +74,9 @@ object WikiUtils {
     val startFilename = file.lastIndexOf("/") + 1
     
     val year = file.substring(startFilename + 11, startFilename + 15).toShort
-    val month = file.substring(startFilename + 15, startFilename + 17).toShort
-    val day = file.substring(startFilename + 17, startFilename + 19).toShort
-    val hour = file.substring(startFilename + 20, startFilename + 22).toShort
+    val month = file.substring(startFilename + 15, startFilename + 17).toByte
+    val day = file.substring(startFilename + 17, startFilename + 19).toByte
+    val hour = file.substring(startFilename + 20, startFilename + 22).toByte
     
     new Time(year, month, day, hour)
   }

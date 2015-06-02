@@ -63,11 +63,29 @@
           <version>3.1</version>
       </dependency>
 
-      <dependency>
+    <dependency>
       <groupId>org.jfree</groupId>
       <artifactId>jfreechart</artifactId>
       <version>1.0.19</version>
-    </dependency>    
+    </dependency>
+
+      <!-- Parquet dependencies -->
+      <dependency>
+          <groupId>com.twitter</groupId>
+          <artifactId>parquet-hadoop</artifactId>
+          <version>1.6.0rc4</version>
+      </dependency>
+      <dependency>
+          <groupId>com.twitter</groupId>
+          <artifactId>parquet-thrift</artifactId>
+          <version>1.6.0rc4</version>
+          <exclusions>
+              <exclusion>
+                  <groupId>org.apache.thrift</groupId>
+                  <artifactId>libthrift</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
   </dependencies>
    
 
