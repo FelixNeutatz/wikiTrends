@@ -24,9 +24,9 @@ import java.util.Calendar
 object DateUtils {
 
   def addDays(date: Date, days: Integer): Date = {
-    val cal = Calendar.getInstance();
-    cal.setTime(date);
-    cal.add(Calendar.DATE, days);
-    return cal.getTime();
+    val cal = Calendar.getInstance()
+    cal.setTime(date)
+    cal.add(Calendar.DATE, days)
+    return cal.getTime()
   }
 }
