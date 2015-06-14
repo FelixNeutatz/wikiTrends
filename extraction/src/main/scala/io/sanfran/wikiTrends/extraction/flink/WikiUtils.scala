@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -35,12 +35,18 @@ object WikiUtils {
     FileInputFormat.addInputPath(job, new Path(file))
     val lines = env.createHadoopInput(hadoopInput, classOf[Text], classOf[Text], job)
 
-    lines.map { line =>
+    lines.flatMap { line =>
       val columns = line._2.toString.split(" ")
       
       val time = parseTime(line._1.toString)
       
-      new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, time.year, time.month, time.day, time.hour) }
+      val result = if (columns.size < 4) {
+        Seq()
+      } else {
+        Seq(new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, time.year, time.month, time.day, time.hour))
+      }
+      result
+    }
   }
 
   def readWikiTrafficCSV(file: String)(implicit env: ExecutionEnvironment) = {

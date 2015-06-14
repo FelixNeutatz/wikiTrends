@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -48,7 +48,7 @@ object ParquetUtils {
     FileOutputFormat.setOutputPath(job, new Path(outputPath))
 
     ParquetThriftOutputFormat.setThriftClass(job, classOf[WikiTrafficThrift])
-    ParquetOutputFormat.setCompression(job, CompressionCodecName.SNAPPY)
+    ParquetOutputFormat.setCompression(job, CompressionCodecName.UNCOMPRESSED)
     ParquetOutputFormat.setEnableDictionary(job, true)
 
     // Output & Execute

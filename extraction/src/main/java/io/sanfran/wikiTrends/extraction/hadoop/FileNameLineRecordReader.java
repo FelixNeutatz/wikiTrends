@@ -1,11 +1,26 @@
+/**
+ * wikiTrends
+ * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package io.sanfran.wikiTrends.extraction.hadoop;
 
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
-import org.apache.hadoop.classification.InterfaceStability.Unstable;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -18,189 +33,187 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.io.compress.Decompressor;
 import org.apache.hadoop.io.compress.SplitCompressionInputStream;
 import org.apache.hadoop.io.compress.SplittableCompressionCodec;
-import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE;
-import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.RecordReader;
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.Log;
+import org.apache.hadoop.mapred.*;
 
 public class FileNameLineRecordReader implements RecordReader<Text, Text> {
-  private static final Log LOG = LogFactory.getLog(FileNameLineRecordReader.class.getName());
-  private CompressionCodecFactory compressionCodecs;
-  private long start;
-  private long pos;
-  private long end;
-  private FileNameLineRecordReader.LineReader in;
-  private FSDataInputStream fileIn;
-  private final Seekable filePosition;
-  int maxLineLength;
-  private CompressionCodec codec;
-  private Decompressor decompressor;
-  private String filename;
+		private static final Log LOG
+				= LogFactory.getLog(FileNameLineRecordReader.class.getName());
 
-  public FileNameLineRecordReader(Configuration job, FileSplit split) throws IOException {
-    this(job, split, (byte[])null);
-    this.filename =  split.getPath().getName();
-  }
+		private CompressionCodecFactory compressionCodecs = null;
+		private long start;
+		private long pos;
+		private long end;
+		private LineReader in;
+		int maxLineLength;
+		private Seekable filePosition;
+		private CompressionCodec codec;
+		private Decompressor decompressor;
+	  private String fileName;
 
-  public FileNameLineRecordReader(Configuration job, FileSplit split, byte[] recordDelimiter) throws IOException {
-    this.compressionCodecs = null;
-    this.maxLineLength = job.getInt("mapreduce.input.linerecordreader.line.maxlength", 2147483647);
-    this.start = split.getStart();
-    this.end = this.start + split.getLength();
-    Path file = split.getPath();
+		/**
+		 * A class that provides a line reader from an input stream.
+		 * @deprecated Use {@link org.apache.hadoop.util.LineReader} instead.
+		 */
+		@Deprecated
+		public static class LineReader extends org.apache.hadoop.util.LineReader {
+			LineReader(InputStream in) {
+				super(in);
+			}
+			LineReader(InputStream in, int bufferSize) {
+				super(in, bufferSize);
+			}
+			public LineReader(InputStream in, Configuration conf) throws IOException {
+				super(in, conf);
+			}
+		}
 
-    this.filename =  split.getPath().getName();
-    
-    this.compressionCodecs = new CompressionCodecFactory(job);
-    this.codec = this.compressionCodecs.getCodec(file);
-    FileSystem fs = file.getFileSystem(job);
-    this.fileIn = fs.open(file);
-    if(this.isCompressedInput()) {
-      this.decompressor = CodecPool.getDecompressor(this.codec);
-      if(this.codec instanceof SplittableCompressionCodec) {
-        SplitCompressionInputStream cIn = ((SplittableCompressionCodec)this.codec).createInputStream(this.fileIn, this.decompressor, this.start, this.end, READ_MODE.BYBLOCK);
-        this.in = new FileNameLineRecordReader.LineReader(cIn, job, recordDelimiter);
-        this.start = cIn.getAdjustedStart();
-        this.end = cIn.getAdjustedEnd();
-        this.filePosition = cIn;
-      } else {
-        this.in = new FileNameLineRecordReader.LineReader(this.codec.createInputStream(this.fileIn, this.decompressor), job, recordDelimiter);
-        this.filePosition = this.fileIn;
-      }
-    } else {
-      this.fileIn.seek(this.start);
-      this.in = new FileNameLineRecordReader.LineReader(this.fileIn, job, recordDelimiter);
-      this.filePosition = this.fileIn;
-    }
+		public FileNameLineRecordReader(Configuration job,
+														FileSplit split) throws IOException {
+			this.maxLineLength = job.getInt("mapred.LineRecordReader.maxlength",
+					Integer.MAX_VALUE);
+			fileName = split.getPath().getName();
+			start = split.getStart();
+			end = start + split.getLength();
+			final Path file = split.getPath();
+			compressionCodecs = new CompressionCodecFactory(job);
+			codec = compressionCodecs.getCodec(file);
 
-    if(this.start != 0L) {
-      this.start += (long)this.in.readLine(new Text(), 0, this.maxBytesToConsume(this.start));
-    }
+			// open the file and seek to the start of the split
+			FileSystem fs = file.getFileSystem(job);
+			FSDataInputStream fileIn = fs.open(split.getPath());
 
-    this.pos = this.start;
-  }
+			if (isCompressedInput()) {
+				decompressor = CodecPool.getDecompressor(codec);
+				if (codec instanceof SplittableCompressionCodec) {
+					final SplitCompressionInputStream cIn =
+							((SplittableCompressionCodec)codec).createInputStream(
+									fileIn, decompressor, start, end,
+									SplittableCompressionCodec.READ_MODE.BYBLOCK);
+					in = new LineReader(cIn, job);
+					start = cIn.getAdjustedStart();
+					end = cIn.getAdjustedEnd();
+					filePosition = cIn; // take pos from compressed stream
+				} else {
+					in = new LineReader(codec.createInputStream(fileIn, decompressor), job);
+					filePosition = fileIn;
+				}
+			} else {
+				fileIn.seek(start);
+				in = new LineReader(fileIn, job);
+				filePosition = fileIn;
+			}
+			// If this is not the first split, we always throw away first record
+			// because we always (except the last split) read one extra line in
+			// next() method.
+			if (start != 0) {
+				start += in.readLine(new Text(), 0, maxBytesToConsume(start));
+			}
+			this.pos = start;
+		}
 
-  public FileNameLineRecordReader(InputStream in, long offset, long endOffset, int maxLineLength) {
-    this(in, offset, endOffset, maxLineLength, (byte[])null);
-  }
+		private boolean isCompressedInput() {
+			return (codec != null);
+		}
 
-  public FileNameLineRecordReader(InputStream in, long offset, long endOffset, int maxLineLength, byte[] recordDelimiter) {
-    this.compressionCodecs = null;
-    this.maxLineLength = maxLineLength;
-    this.in = new FileNameLineRecordReader.LineReader(in, recordDelimiter);
-    this.start = offset;
-    this.pos = offset;
-    this.end = endOffset;
-    this.filePosition = null;
-  }
+		private int maxBytesToConsume(long pos) {
+			return isCompressedInput()
+					? Integer.MAX_VALUE
+					: (int) Math.min(Integer.MAX_VALUE, end - pos);
+		}
 
-  public FileNameLineRecordReader(InputStream in, long offset, long endOffset, Configuration job) throws IOException {
-    this(in, offset, endOffset, job, (byte[])null);
-  }
+		private long getFilePosition() throws IOException {
+			long retVal;
+			if (isCompressedInput() && null != filePosition) {
+				retVal = filePosition.getPos();
+			} else {
+				retVal = pos;
+			}
+			return retVal;
+		}
 
-  public FileNameLineRecordReader(InputStream in, long offset, long endOffset, Configuration job, byte[] recordDelimiter) throws IOException {
-    this.compressionCodecs = null;
-    this.maxLineLength = job.getInt("mapreduce.input.linerecordreader.line.maxlength", 2147483647);
-    this.in = new FileNameLineRecordReader.LineReader(in, job, recordDelimiter);
-    this.start = offset;
-    this.pos = offset;
-    this.end = endOffset;
-    this.filePosition = null;
-  }
+		public FileNameLineRecordReader(InputStream in, long offset, long endOffset,
+														int maxLineLength) {
+			this.maxLineLength = maxLineLength;
+			this.in = new LineReader(in);
+			this.start = offset;
+			this.pos = offset;
+			this.end = endOffset;
+			this.filePosition = null;
+		}
 
-  public Text createKey() {
-    return new Text();
-  }
+		public FileNameLineRecordReader(InputStream in, long offset, long endOffset,
+														Configuration job)
+				throws IOException{
+			this.maxLineLength = job.getInt("mapred.LineRecordReader.maxlength",
+					Integer.MAX_VALUE);
+			this.in = new LineReader(in, job);
+			this.start = offset;
+			this.pos = offset;
+			this.end = endOffset;
+			this.filePosition = null;
+		}
 
-  public Text createValue() {
-    return new Text();
-  }
+		public Text createKey() {
+			return new Text();
+		}
 
-  private boolean isCompressedInput() {
-    return this.codec != null;
-  }
+		public Text createValue() {
+			return new Text();
+		}
 
-  private int maxBytesToConsume(long pos) {
-    return this.isCompressedInput()?2147483647:(int)Math.min(2147483647L, this.end - pos);
-  }
+		/** Read a line. */
+		public synchronized boolean next(Text key, Text value)
+				throws IOException {
 
-  private long getFilePosition() throws IOException {
-    long retVal;
-    if(this.isCompressedInput() && null != this.filePosition) {
-      retVal = this.filePosition.getPos();
-    } else {
-      retVal = this.pos;
-    }
+			// We always read one extra line, which lies outside the upper
+			// split limit i.e. (end - 1)
+			while (getFilePosition() <= end) {
+				key.set(fileName);
 
-    return retVal;
-  }
+				int newSize = in.readLine(value, maxLineLength,
+						Math.max(maxBytesToConsume(pos), maxLineLength));
+				if (newSize == 0) {
+					return false;
+				}
+				pos += newSize;
+				if (newSize < maxLineLength) {
+					return true;
+				}
 
-  public synchronized boolean next(Text key, Text value) throws IOException {
-    while(this.getFilePosition() <= this.end) {
-      key.set(this.filename);
-      int newSize = this.in.readLine(value, this.maxLineLength, Math.max(this.maxBytesToConsume(this.pos), this.maxLineLength));
-      if(newSize == 0) {
-        return false;
-      }
+				// line too long. try again
+				LOG.info("Skipped line of size " + newSize + " at pos " + (pos - newSize));
+			}
 
-      this.pos += (long)newSize;
-      if(newSize < this.maxLineLength) {
-        return true;
-      }
+			return false;
+		}
 
-      LOG.info("Skipped line of size " + newSize + " at pos " + (this.pos - (long)newSize));
-    }
+		/**
+		 * Get the progress within the split
+		 */
+		public float getProgress() throws IOException {
+			if (start == end) {
+				return 0.0f;
+			} else {
+				return Math.min(1.0f,
+						(getFilePosition() - start) / (float)(end - start));
+			}
+		}
 
-    return false;
-  }
+		public synchronized long getPos() throws IOException {
+			return pos;
+		}
 
-  public synchronized float getProgress() throws IOException {
-    return this.start == this.end?0.0F:Math.min(1.0F, (float)(this.getFilePosition() - this.start) / (float)(this.end - this.start));
-  }
-
-  public synchronized long getPos() throws IOException {
-    return this.pos;
-  }
-
-  public synchronized void close() throws IOException {
-    try {
-      if(this.in != null) {
-        this.in.close();
-      }
-    } finally {
-      if(this.decompressor != null) {
-        CodecPool.returnDecompressor(this.decompressor);
-      }
-
-    }
-
-  }
-
-  /** @deprecated */
-  @Deprecated
-  public static class LineReader extends org.apache.hadoop.util.LineReader {
-    LineReader(InputStream in) {
-      super(in);
-    }
-
-    LineReader(InputStream in, int bufferSize) {
-      super(in, bufferSize);
-    }
-
-    public LineReader(InputStream in, Configuration conf) throws IOException {
-      super(in, conf);
-    }
-
-    LineReader(InputStream in, byte[] recordDelimiter) {
-      super(in, recordDelimiter);
-    }
-
-    LineReader(InputStream in, int bufferSize, byte[] recordDelimiter) {
-      super(in, bufferSize, recordDelimiter);
-    }
-
-    public LineReader(InputStream in, Configuration conf, byte[] recordDelimiter) throws IOException {
-      super(in, conf, recordDelimiter);
-    }
-  }
-}
-
+		public synchronized void close() throws IOException {
+			try {
+				if (in != null) {
+					in.close();
+				}
+			} finally {
+				if (decompressor != null) {
+					CodecPool.returnDecompressor(decompressor);
+				}
+			}
+		}
+	}

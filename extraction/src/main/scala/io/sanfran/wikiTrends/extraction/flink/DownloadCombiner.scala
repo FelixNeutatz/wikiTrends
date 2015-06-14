@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -31,24 +31,30 @@ object DownloadCombiner extends App {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
+    val folder = "/share/flink/data/"
+    //val folder = "/tmp/"
+
     var begin = true
-    val file = new File("/tmp/resultWiki")
+    val file = new File(folder  + "resultWiki")
 
     var data: DataSet[WikiTrafficID] = null    
     
     for(name <- file.list())
     {
-      if (new File("/tmp/resultWiki/" + name).isDirectory())
+      if (new File(folder + "resultWiki/" + name).isDirectory())
       {
         if (begin) {
-          data = ParquetUtils.readParquet(env, "/tmp/resultWiki/" + name)
+          data = ParquetUtils.readParquet(env, "file://" + folder + "resultWiki/" + name)
           begin = false
         } else {
-          data = data.union(ParquetUtils.readParquet(env, "/tmp/resultWiki/" + name))
+          data = data.union(ParquetUtils.readParquet(env, "file://" + folder + "resultWiki/" + name))
         }
       }
     }
-    ParquetUtils.writeParquet(data,"/tmp/finalResultWiki/")
+    
+    println(data.count)
+    
+    ParquetUtils.writeParquet(data, "file://" + folder + "finalResultWiki/")
     
     env.execute()    
   }

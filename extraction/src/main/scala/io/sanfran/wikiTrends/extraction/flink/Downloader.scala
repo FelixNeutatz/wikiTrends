@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -91,7 +91,7 @@ object Downloader extends App {
           //TODO: join with white list
           val filtered = traffic.filter { t => t.projectName.equals("en") }
 
-          ParquetUtils.writeParquet(filtered, "/tmp/resultWiki/csv" + (count / batchSize))
+          //ParquetUtils.writeParquet(filtered, "/tmp/resultWiki/csv" + (count / batchSize))
 
           env.execute()
 

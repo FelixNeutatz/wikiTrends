@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify

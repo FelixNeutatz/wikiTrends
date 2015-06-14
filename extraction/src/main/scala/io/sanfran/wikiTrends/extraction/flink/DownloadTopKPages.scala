@@ -1,5 +1,5 @@
 /**
- * Track the trackers
+ * wikiTrends
  * Copyright (C) 2015  Felix Neutatz, Stephan Alaniz Kupsch 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -42,6 +42,9 @@ object DownloadTopKPages extends App {
     
     val batchSize : Int = 24
     
+    val folder = "/share/flink/data/"
+    //val folder = "/tmp/"
+    
     var d = startDate    
     do {
           val day = d.getDate
@@ -65,7 +68,7 @@ object DownloadTopKPages extends App {
               println(file)
 
               try {
-                val fileF = new File("/tmp/new/" + file)
+                val fileF = new File(folder + "new/" + file)
                 val urlU = new URL(url)
                 FileUtils.copyURLToFile(urlU, fileF)
 
@@ -83,7 +86,7 @@ object DownloadTopKPages extends App {
             //run flink job after each batch of one day
             if (count % batchSize == 0) { 
               println("starting flink") 
-              val traffic = WikiUtils.readWikiTrafficID("/tmp/new/")
+              val traffic = WikiUtils.readWikiTrafficID("file://" + folder + "new/") 
 
               val filtered = traffic.filter { t => t.projectName.equals("en") || t.projectName.equals("de") }
                   .groupBy("pageTitle")
@@ -92,11 +95,11 @@ object DownloadTopKPages extends App {
 
               }.filter(t => t.requestNumber > 100) 
 
-              ParquetUtils.writeParquet(filtered, "/tmp/resultWiki/csv" + (count / batchSize))
+              ParquetUtils.writeParquet(filtered, "file://" + folder + "resultWiki/csv" + (count / batchSize))
 
               env.execute()   
 
-              val files = new File("/tmp/new/").listFiles()
+              val files = new File(folder + "new/").listFiles()
               for (f <- files) {
                 f.delete()
               }
