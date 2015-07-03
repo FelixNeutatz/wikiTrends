@@ -16,11 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package io.sanfran.wikiTrends.extraction.downloader
-
 import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Random;
 
 import org.apache.commons.io.FileUtils;
 
@@ -32,21 +31,23 @@ import java.io.IOException;
 
 public class Downloader {
 	
-  private static final String DOWNLOAD_FOLDER = "/tmp/sanfran/";
+  private static final String DOWNLOAD_FOLDER = "/home/alanizkupsch/data/";
   
   public static void download() throws IOException {
+	  
+	int fileId = new Random().nextInt();
 	
-	FileWriter fileStats = new FileWriter(DOWNLOAD_FOLDER + "fileDownloadStatistics.txt");
-	fileStats.write("File Size(in Byte) Time(in s) Speed(in MB/s)\n");
+	FileWriter fileStats = new FileWriter(DOWNLOAD_FOLDER + "fileDownloadStatistics2014_" + fileId + ".txt");
+	fileStats.write("File Size(in Byte) Time(in s) Speed(in MB/s) Date\n");
 	fileStats.flush();
-	FileWriter allStats = new FileWriter(DOWNLOAD_FOLDER + "sessionDownloadStatistics.txt");
-	allStats.write("NumberOfFiles TotalFileSize(in Byte) TotalTime(in s) AverageSpeed(in MB/s)\n");
+	FileWriter allStats = new FileWriter(DOWNLOAD_FOLDER + "sessionDownloadStatistics2014_" + fileId + ".txt");
+	allStats.write("NumberOfFiles TotalFileSize(in Byte) TotalTime(in s) AverageSpeed(in MB/s) Date\n");
 	allStats.flush();
 	double downloadTimeInSec = 0D;
 	long totalFileSize = 0L;
 
-    Date startDate = new Date(2012, 0, 1);
-    Date endDate = new Date(2012, 0, 2);
+    Date startDate = new Date(2014, 0, 1);
+    Date endDate = new Date(2015, 0, 1);
 
     long count = 0L;
 
@@ -89,20 +90,22 @@ public class Downloader {
 //			fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
 //			fos.close();
 			
-			long fileSize = FileUtils.sizeOf(fileF);
-			double timeSec = ((double)System.nanoTime() - start) / 1000000000D;
-			downloadTimeInSec += timeSec;
-			totalFileSize += fileSize;
+			found = true;
 			count = count + 1L;
 			
-			fileStats.write(file + " " + fileSize + " " + timeSec + " " + (double)fileSize / 1000000D / timeSec + "\n");
-			fileStats.flush();
-			allStats.write(count + " " + totalFileSize + " " + downloadTimeInSec + " " + (double)totalFileSize / 1000000D / downloadTimeInSec + "\n");
-			allStats.flush();
+			long fileSize = FileUtils.sizeOf(fileF);
+			double timeSec = ((double)System.nanoTime() - start) / 1000000000D;
+			String currDate = new Date().toString();
+			downloadTimeInSec += timeSec;
+			totalFileSize += fileSize;
 			
-			found = true;
+			fileStats.write(file + " " + fileSize + " " + timeSec + " " + (double)fileSize / 1000000D / timeSec + " '" + currDate + "'\n");
+			fileStats.flush();
+			allStats.write(count + " " + totalFileSize + " " + downloadTimeInSec + " " + (double)totalFileSize / 1000000D / downloadTimeInSec + " '" + currDate + "'\n");
+			allStats.flush();
           } catch (Exception e) {
-        	e.printStackTrace();
+        	//do nothing - go to next possible file
+        	//e.printStackTrace();
           }
 
           version = version + 1;
