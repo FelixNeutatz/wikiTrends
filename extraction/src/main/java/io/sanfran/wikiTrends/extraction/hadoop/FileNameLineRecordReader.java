@@ -18,6 +18,7 @@
 
 package io.sanfran.wikiTrends.extraction.hadoop;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -167,23 +168,27 @@ public class FileNameLineRecordReader implements RecordReader<Text, Text> {
 		public synchronized boolean next(Text key, Text value)
 				throws IOException {
 
-			// We always read one extra line, which lies outside the upper
-			// split limit i.e. (end - 1)
-			while (getFilePosition() <= end) {
-				key.set(fileName);
+			try {
+				// We always read one extra line, which lies outside the upper
+				// split limit i.e. (end - 1)
+				while (getFilePosition() <= end) {
+					key.set(fileName);
 
-				int newSize = in.readLine(value, maxLineLength,
-						Math.max(maxBytesToConsume(pos), maxLineLength));
-				if (newSize == 0) {
-					return false;
-				}
-				pos += newSize;
-				if (newSize < maxLineLength) {
-					return true;
-				}
+					int newSize = in.readLine(value, maxLineLength,
+							Math.max(maxBytesToConsume(pos), maxLineLength));
+					if (newSize == 0) {
+						return false;
+					}
+					pos += newSize;
+					if (newSize < maxLineLength) {
+						return true;
+					}
 
-				// line too long. try again
-				LOG.info("Skipped line of size " + newSize + " at pos " + (pos - newSize));
+					// line too long. try again
+					LOG.info("Skipped line of size " + newSize + " at pos " + (pos - newSize));
+				}
+			} catch (EOFException corruptFileException) {
+				LOG.warn("corrupt file: " + fileName);
 			}
 
 			return false;
