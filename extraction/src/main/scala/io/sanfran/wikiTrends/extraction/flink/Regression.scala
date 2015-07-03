@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.regression.MultipleLinearRegression
+import org.apache.flink.ml._
 
 import org.joda.time._
 
@@ -220,6 +221,10 @@ object Regression extends App {
     }.map { t => t.quantile(0.999) }.collect().apply(0)
 
     PlotIT.plotDiffWithThreshold(diff, quantile)    
+    
+    //diff.map{ t }
+    
+    
   }
 
 }

@@ -49,6 +49,28 @@ object WikiUtils {
     }
   }
 
+  def readWikiTrafficTuple(file: String)(implicit env: ExecutionEnvironment) = {
+
+    val job = new JobConf()
+    val hadoopInput = new FileNameTextInputFormat()
+    FileInputFormat.addInputPath(job, new Path(file))
+    val lines = env.createHadoopInput(hadoopInput, classOf[Text], classOf[Text], job)
+
+    lines.flatMap { line =>
+      val columns = line._2.toString.split(" ")
+
+      val time = parseTime(line._1.toString)
+
+      val result = if (columns.size < 4) {
+        Seq()
+      } else {
+            
+        Seq((columns(0), columns(1), columns(2).toLong, columns(3).toLong, time.year, time.month, time.day, time.hour))
+      }
+      result
+    }
+  }
+
   def readWikiTrafficCSV(file: String)(implicit env: ExecutionEnvironment) = {
 
     val job = new JobConf()
