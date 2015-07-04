@@ -28,11 +28,14 @@ object MovingAverage extends App {
 
   override def main(args: Array[String]) {
     super.main(args)
+    /*
     if (args.length < 1) {
       println("Please add the path of files as argument")
       return
     }
     val path = args(0)
+    */
+    val path = "extraction/src/test/resources/"
 
     var windowSize : Integer = null
     var sliceSize : Integer = null
@@ -40,25 +43,28 @@ object MovingAverage extends App {
       windowSize = Integer.parseInt(args(1))
       sliceSize = Integer.parseInt(args(2))
     } else {
-      windowSize = 7 * 24 //in hours
-      sliceSize = 24 //in hours
+      windowSize = 1 //in hours
+      sliceSize = 1 //in hours
     }
 
-    var date = new Date(2014, 0, 1)
-    var data = readFiles(date, windowSize, path)
-    date = DateUtils.addHours(date, windowSize)
-    //movingAverage(args(0), args(1))
+    var date = new Date(2015, 0, 1)
 
-    //implicit val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val data = readFiles(date, windowSize, path, env)
+    date = DateUtils.addHours(date, windowSize)
+    movingAverage(data, windowSize, sliceSize, date, 1, path, env)
+
+    env.execute()
 
   }
 
-  def readFiles(date : Date, size : Int, path : String) = {
+  def readFiles(date : Date, size : Int, path : String, env : ExecutionEnvironment) = {
     var currDate = date
     var data : DataSet[(String, String, Long, Long, Short, Byte, Byte, Byte)] = null
     for (i <- 0 until size) {
       val fileString = "pagecounts-" + currDate.getYear + String.format("%02d", currDate.getMonth+1 : Integer) + String.format("%02d", currDate.getDate : Integer) + "-" + String.format("%02d", currDate.getHours : Integer) + "*"
-      val newData = WikiUtils.readWikiTrafficTuple(path + fileString)
+      val newData = WikiUtils.readWikiTrafficTuple(path + fileString, env)
       if (i == 0) {
         data = newData
       } else {
@@ -69,29 +75,32 @@ object MovingAverage extends App {
     data
   }
 
-  def movingAverage(data : DataSet[(String, String, Long, Long, Short, Byte, Byte, Byte)], windowSize: Integer, sliceSize : Integer, date : Date, iterations : Integer, path : String) = {
+  def movingAverage(data : DataSet[(String, String, Long, Long, Short, Byte, Byte, Byte)], windowSize: Integer, sliceSize : Integer, date : Date, iterations : Integer, path : String, env : ExecutionEnvironment) = {
     var currDate = date
     var currEndDate = DateUtils.addHours(date, windowSize)
-    val iteration = data.iterate(iterations) {
-      batch => {
-        val midDate = DateUtils.addHours(date, windowSize / 2)
-        var average_variance = batch
-          .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4)}
-          .groupBy(0,1)
+    //val iteration = data.iterate(iterations) {
+    for (i <- 0 until iterations) {
+      //batch => {
+        var currData = data
+        val midDate = DateUtils.addHours(currDate, windowSize / 2)
+        val average_variance = currData
+          .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4) }
+          .groupBy(0, 1)
           .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + a._5, a._6 + a._6) }
-          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth+1, midDate.getDate)}
+          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth + 1, midDate.getDate) }
 
-        average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth+1 : Integer) + String.format("%02d", midDate.getDate : Integer) + "-" + String.format("%02d", midDate.getHours : Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+        average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth + 1: Integer) + String.format("%02d", midDate.getDate: Integer) + "-" + String.format("%02d", midDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
         //read in and union new batch slice (days)
         currDate = DateUtils.addHours(currDate, sliceSize)
         //filter out old batch slice (days)
-        var newBatch = batch.filter { a => a._5 > currDate.getYear || (a._5 == currDate.getYear && a._6 > currDate.getMonth+1) ||  (a._5 == currDate.getYear && a._6 == currDate.getMonth+1 && a._7 > currDate.getDate) || (a._5 == currDate.getYear && a._6 == currDate.getMonth+1 && a._7 == currDate.getDate && a._8 >= currDate.getHours)}
-        newBatch = newBatch.union(readFiles(currEndDate, sliceSize, path))
+        var newBatch = currData.filter { a => a._5 > currDate.getYear || (a._5 == currDate.getYear && a._6 > currDate.getMonth + 1) || (a._5 == currDate.getYear && a._6 == currDate.getMonth + 1 && a._7 > currDate.getDate) || (a._5 == currDate.getYear && a._6 == currDate.getMonth + 1 && a._7 == currDate.getDate && a._8 >= currDate.getHours) }
+        newBatch = newBatch.union(readFiles(currEndDate, sliceSize, path, env))
         currEndDate = DateUtils.addHours(currEndDate, sliceSize)
-        newBatch
+        currData = newBatch
       }
-    }
+    //}
+    //}
   }
 
 }
