@@ -29,4 +29,11 @@ object DateUtils {
     cal.add(Calendar.DATE, days)
     return cal.getTime()
   }
+
+  def addHours(date: Date, hours: Integer): Date = {
+    val cal = Calendar.getInstance()
+    cal.setTime(date)
+    cal.add(Calendar.HOUR, hours)
+    return cal.getTime()
+  }
 }
