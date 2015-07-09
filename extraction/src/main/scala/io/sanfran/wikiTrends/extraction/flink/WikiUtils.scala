@@ -49,7 +49,7 @@ object WikiUtils {
     }
   }
 
-  def readWikiTrafficTuple(file: String)(implicit env: ExecutionEnvironment) = {
+  def readWikiTrafficTuple(file: String, env: ExecutionEnvironment) = {
 
     val job = new JobConf()
     val hadoopInput = new FileNameTextInputFormat()
@@ -83,7 +83,7 @@ object WikiUtils {
       
       new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toByte, columns(6).toByte, columns(7).toByte) }
   }
-
+  
   def readWikiTraffic(file: String)(implicit env: ExecutionEnvironment) = {
     
     val time = parseTime(file)

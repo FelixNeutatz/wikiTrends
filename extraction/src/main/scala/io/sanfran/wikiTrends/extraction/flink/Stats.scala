@@ -40,7 +40,7 @@ object Stats extends App {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val data = WikiUtils.readWikiTrafficTuple(pageFile)
+    val data = WikiUtils.readWikiTrafficTuple(pageFile, env)
     
     
     //projectName: 0, pageTitle: 1, requestNumber: 2, contentSize: 3, year: 4, month: 5, day: 6, hour: 7

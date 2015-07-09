@@ -25,3 +25,6 @@ case class WikiTraffic(projectName: String, pageTitle: String, requestNumber: Lo
 case class WikiTrafficID(projectName: String, pageTitle: String, requestNumber: Long, contentSize: Long, year: Short, month: Byte, day: Byte, hour: Byte)
 
 case class RegressionData(y: Double, oneHourAgo: Double, twoHoursAgo: Double, threeHoursAgo: Double, twentyFourHoursAgo: Double, fourtyEightHoursAgo : Double)
+
+
+case class AnomaliesPerDay(projectName: String, pageTitle: String, year: Short, month: Byte, day: Byte, visitMaxOnDay: Long, relativeToQuantile: Double, relativeToNorm: Double)
