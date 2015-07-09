@@ -25,6 +25,7 @@ import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.regression.MultipleLinearRegression
@@ -49,10 +50,10 @@ object Regression extends App {
 
   override def main(args: Array[String]) {
     super.main(args)
-    model(args(0), args(1))
+    model(args(0), args(1), args(2))
   }
 
-  def model(pageFile : String, projectName: String) = {
+  def model(pageFile : String, projectName: String, outputPath: String) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -64,6 +65,9 @@ object Regression extends App {
                      
     //println(titles)
     
+    var allAnomaliesPerDay : DataSet[AnomaliesPerDay] = null
+    
+    val iteration = 0
     for (page <- titles) {
       
       val data = indata.filter(t => t.pageTitle.equals(page._1))
@@ -232,14 +236,14 @@ object Regression extends App {
           .where(0)
           .equalTo("hourId") { (a, b) => new DataHourIdTime(a._2, b.hourId, b.year, b.month, b.day, b.hour, b.visits) }
 
-      PlotIT.plotBoth(predictionsWithTime)
+      //PlotIT.plotBoth(predictionsWithTime)
 
       //val diff = predictionsWithTime.map( t => new DataHourIdTime(t.orginalVisits - t.visits, t.hourId,t.year, t.month, t.day, t.hour, t.orginalVisits))
       val diff = predictionsWithTime.map(t => new DataHourIdTime(Math.abs(t.orginalVisits - t.visits), t.hourId, t.year, t.month, t.day, t.hour, t.orginalVisits))
 
 
 
-      PlotIT.plotDataPredictions(diff)
+      //PlotIT.plotDataPredictions(diff)
 
       val compression = 100
       val pageSize = 100
@@ -253,13 +257,25 @@ object Regression extends App {
         a.add(b)
         a.compress()
         a
-      }.map { t => t.quantile(0.999) }.collect().apply(0)
+      }.map { t => t.quantile(0.999) }.collect().head
 
-      PlotIT.plotDiffWithThreshold(diff, quantile)
+      //PlotIT.plotDiffWithThreshold(diff, quantile)
 
-      val anomalies = diff.filter { t => t.visits > quantile }
-
+      val anomaliesPerDay = predictionsWithTime.map(t => (projectName, page._1, t.year, t.month, t.day, t.hour, Math.abs(t.orginalVisits - t.visits),t.visits, t.orginalVisits))
+                       .groupBy(0,1,2,3,4)
+                       .max(6).andMax(7).andMax(8)
+                       .map {t => new AnomaliesPerDay(t._1, t._2, t._3, t._4.toByte, t._5.toByte, t._7.toLong, t._7 / quantile, t._9 / t._8)}
+                       .filter { a => a.relativeToQuantile > 1}
+      
+      if (iteration == 0) {
+        allAnomaliesPerDay = anomaliesPerDay
+      } else {
+        allAnomaliesPerDay = allAnomaliesPerDay.union(anomaliesPerDay)
+      }
     }
+
+    allAnomaliesPerDay.writeAsCsv(outputPath + "anomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    env.execute()
   }
 
 }

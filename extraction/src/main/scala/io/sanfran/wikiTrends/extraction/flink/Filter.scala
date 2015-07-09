@@ -35,7 +35,7 @@ object Filter extends App {
 
     val white = env.readCsvFile[Tuple2[String,String]](whiteList, fieldDelimiter = " ")
                  
-    val data = WikiUtils.readWikiTrafficTuple(pageFile)
+    val data = WikiUtils.readWikiTrafficTuple(pageFile, env)
     
     val filtered = data.joinWithTiny(white).where(0,1).equalTo(0,1) { (a,_) => a }
            

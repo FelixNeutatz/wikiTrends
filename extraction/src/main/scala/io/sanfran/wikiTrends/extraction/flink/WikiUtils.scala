@@ -49,7 +49,7 @@ object WikiUtils {
     }
   }
 
-  def readWikiTrafficTuple(file: String)(implicit env: ExecutionEnvironment) = {
+  def readWikiTrafficTuple(file: String, env: ExecutionEnvironment) = {
 
     val job = new JobConf()
     val hadoopInput = new FileNameTextInputFormat()
