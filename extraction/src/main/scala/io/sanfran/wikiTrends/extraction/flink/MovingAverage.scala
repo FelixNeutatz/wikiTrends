@@ -43,8 +43,8 @@ object MovingAverage extends App {
       windowSize = Integer.parseInt(args(1))
       sliceSize = Integer.parseInt(args(2))
     } else {
-      windowSize = 7 * 24 //in hours
-      sliceSize = 24 //in hours
+      windowSize = 1 //in hours
+      sliceSize = 1 //in hours
     }
 
     var date = new Date(2015, 0, 1)
@@ -85,9 +85,9 @@ object MovingAverage extends App {
           .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4)}
           .groupBy(0,1)
           .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + a._5, a._6 + a._6) }
-          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth+1, midDate.getDate)}
+          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth + 1, midDate.getDate) }
 
-        average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth+1 : Integer) + String.format("%02d", midDate.getDate : Integer) + "-" + String.format("%02d", midDate.getHours : Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+        average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth + 1: Integer) + String.format("%02d", midDate.getDate: Integer) + "-" + String.format("%02d", midDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
         //read in and union new batch slice (days)
         currDate = DateUtils.addHours(currDate, sliceSize)
@@ -97,7 +97,8 @@ object MovingAverage extends App {
         currEndDate = DateUtils.addHours(currEndDate, sliceSize)
         newBatch
       }
-    }
+    //}
+    //}
   }
 
 }
