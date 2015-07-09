@@ -57,7 +57,7 @@ object Regression extends App {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val indata = WikiUtils.readWikiTrafficCSV(pageFile).filter( t => t.projectName.equals(projectName))
+    val indata = WikiUtils.readWikiTrafficCSV(pageFile, " ").filter( t => t.projectName.equals(projectName))
     
     val titles = indata.map(t => Tuple1(t.pageTitle))
                      .distinct(0)

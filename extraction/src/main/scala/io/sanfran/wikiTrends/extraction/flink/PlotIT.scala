@@ -109,7 +109,7 @@ object PlotIT extends App {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val data = WikiUtils.readWikiTrafficCSV(pageFile)
+    val data = WikiUtils.readWikiTrafficCSV(pageFile, "\t")
 
     plotData(data)
   }

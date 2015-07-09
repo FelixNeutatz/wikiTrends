@@ -71,7 +71,7 @@ object WikiUtils {
     }
   }
 
-  def readWikiTrafficCSV(file: String)(implicit env: ExecutionEnvironment) = {
+  def readWikiTrafficCSV(file: String, delimiter: String)(implicit env: ExecutionEnvironment) = {
 
     val job = new JobConf()
     val hadoopInput = new TextInputFormat()
@@ -79,7 +79,7 @@ object WikiUtils {
     val lines = env.createHadoopInput(hadoopInput, classOf[LongWritable], classOf[Text], job)
 
     lines.map { line =>
-      val columns = line._2.toString.split("\t")
+      val columns = line._2.toString.split(delimiter)
       
       new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toByte, columns(6).toByte, columns(7).toByte) }
   }
