@@ -107,8 +107,6 @@ object Regression extends App {
 
       //println("startdate: " + startDate.collect())
 
-
-      //TODO: is this right?
       val timezone = DateTimeZone.forID("America/Los_Angeles")
 
       val dataHour = data.map(new RichMapFunction[WikiTrafficID, DataHourIdTime]() {
@@ -269,7 +267,7 @@ object Regression extends App {
           .map { t => nStandarddev * Math.sqrt( (t._2 / t._3) - ((t._1 / t._3) * (t._1 / t._3)) ) + (t._1 / t._3) }
           .collect().head
 
-      PlotIT.plotDiffWithThreshold(diff, threshold, page._1)
+      //PlotIT.plotDiffWithThreshold(diff, threshold, page._1)
 
       val anomaliesPerDay = diff.filter ( t => t._3 > threshold)
           .groupBy(3,4,5)
@@ -279,18 +277,20 @@ object Regression extends App {
           .map {t => new AnomaliesPerDay(projectName, page._1, t._4, t._5.toByte, t._6.toByte, t._1.toLong, t._3 / threshold, t._1 / t._2)}
           .filter { a => a.relativeToQuantile > 1 }
 
+      /*
       if (iteration == 0) {
         allAnomaliesPerDay = anomaliesPerDay
       } else {
         allAnomaliesPerDay = allAnomaliesPerDay.union(anomaliesPerDay)
-      }
+      }*/
+      anomaliesPerDay.writeAsCsv(outputPath + "anomalies_for_" + iteration, writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
       iteration = iteration + 1
       
       //println("my count: " + allAnomaliesPerDay.count)
     }
 
     //println(allAnomaliesPerDay.collect())
-    allAnomaliesPerDay.writeAsCsv(outputPath + "anomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    //allAnomaliesPerDay.writeAsCsv(outputPath + "anomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
     env.execute()
   }
 
