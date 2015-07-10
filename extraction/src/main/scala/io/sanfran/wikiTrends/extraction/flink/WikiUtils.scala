@@ -83,6 +83,19 @@ object WikiUtils {
       
       new WikiTrafficID(columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toByte, columns(6).toByte, columns(7).toByte) }
   }
+
+  def readWikiTrafficCSVTuple(file: String, delimiter: String)(implicit env: ExecutionEnvironment) = {
+
+    val job = new JobConf()
+    val hadoopInput = new TextInputFormat()
+    FileInputFormat.addInputPath(job, new Path(file))
+    val lines = env.createHadoopInput(hadoopInput, classOf[LongWritable], classOf[Text], job)
+
+    lines.map { line =>
+      val columns = line._2.toString.split(delimiter)
+
+      (columns(0), columns(1), columns(2).toLong, columns(3).toLong, columns(4).toShort, columns(5).toByte, columns(6).toByte, columns(7).toByte) }
+  }
   
   def readWikiTraffic(file: String)(implicit env: ExecutionEnvironment) = {
     
