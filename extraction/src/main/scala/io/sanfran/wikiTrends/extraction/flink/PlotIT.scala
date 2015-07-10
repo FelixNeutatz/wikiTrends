@@ -18,10 +18,13 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
+import java.io.File
+
 import io.sanfran.wikiTrends.Config
 import io.sanfran.wikiTrends.extraction.WikiUtils
 import io.sanfran.wikiTrends.extraction.plots.PlotTimeSeries
 import org.apache.flink.api.scala.{ExecutionEnvironment, DataSet}
+import org.jfree.chart.ChartUtilities
 import org.jfree.data.time.{TimeSeriesCollection, Hour, TimeSeries}
 import org.jfree.ui.RefineryUtilities
 
@@ -84,6 +87,31 @@ object PlotIT extends App {
     demo.pack()
     RefineryUtilities.centerFrameOnScreen(demo)
     demo.setVisible(true)
+  }
+
+  def plotBoth(data: DataSet[TwoSeriesPlot], series1Name: String, series2Name: String, page: String, output: String = null): Unit = {
+    val dataLocal = data.collect().toList
+    val s: TimeSeries = new TimeSeries(series1Name, classOf[Hour])
+    val s2: TimeSeries = new TimeSeries(series2Name, classOf[Hour])
+    for (t <- dataLocal) {
+      s.add(new Hour(t.hour, t.day, t.month, t.year), t.series1)
+      s2.add(new Hour(t.hour, t.day, t.month, t.year), t.series2)
+    }
+
+    val dataset: TimeSeriesCollection = new TimeSeriesCollection
+    dataset.addSeries(s)
+    dataset.addSeries(s2)
+    //dataset.setDomainIsPointsInTime(true)
+
+    val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset)
+    
+    if (output != null) {
+      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1Name + " - " + series2Name), demo.getJFreeChart, 1024, 768)
+    } else{
+      demo.pack()
+      RefineryUtilities.centerFrameOnScreen(demo)
+      demo.setVisible(true)
+    }
   }
 
   def plotBoth(data: DataSet[DataHourIdTime]): Unit = {

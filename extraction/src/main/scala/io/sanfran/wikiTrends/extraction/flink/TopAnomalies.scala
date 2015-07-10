@@ -18,47 +18,31 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
-import com.esotericsoftware.kryo.io.{Output, Input}
-import com.esotericsoftware.kryo.{Kryo, Serializer}
-import com.tdunning.math.stats.ArrayDigest
-import io.sanfran.wikiTrends.Config
 import io.sanfran.wikiTrends.extraction.WikiUtils
-
-import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.regression.MultipleLinearRegression
-import org.apache.flink.ml._
-
-import org.joda.time._
-
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.DataSet
 
 
-object AnomaliesPerDays extends App {
+object TopAnomalies extends App {
 
   override def main(args: Array[String]) {
     super.main(args)
-    newsletter(args(0))
+    topKAnomalies(args(0), args(1).toInt)
   }
 
-  def newsletter(pageFile : String) = {
+  def topKAnomalies(pageFile : String, k: Int) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
     
     val anomalies = WikiUtils.readAnomCSVTuple(pageFile)
     
-    anomalies.groupBy(2,3,4)
+    val topK = anomalies.groupBy(2,3,4)
         .sortGroup(6, Order.DESCENDING)
-        .first(5)
+        .first(k)
         .distinct(0,1)
-        .print
+        .collect()
+    
+    topK.sortWith(_._7 < _._7).foreach(println)
     
   }
 

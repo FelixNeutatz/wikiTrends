@@ -36,6 +36,8 @@ import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 
 public class PlotTimeSeries extends ApplicationFrame {
+	
+	private static JFreeChart chart;
 
   public PlotTimeSeries(String title, TimeSeriesCollection data) {
     super(title);
@@ -44,6 +46,10 @@ public class PlotTimeSeries extends ApplicationFrame {
     chartPanel.setMouseZoomable(true, false);
     setContentPane(chartPanel);
   }
+	
+	public JFreeChart getJFreeChart() {
+		return chart;
+	}
 
   private static JFreeChart createChart(XYDataset dataset, String title) {
 
@@ -83,7 +89,7 @@ public class PlotTimeSeries extends ApplicationFrame {
   }
 
   public static JPanel createPanel(TimeSeriesCollection data, String title) {
-    JFreeChart chart = createChart(data, title);
+    chart = createChart(data, title);
     return new ChartPanel(chart);
   }
 
