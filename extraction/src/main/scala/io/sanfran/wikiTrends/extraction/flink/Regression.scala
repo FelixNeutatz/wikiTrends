@@ -18,11 +18,14 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
+import com.esotericsoftware.kryo.io.{Output, Input}
+import com.esotericsoftware.kryo.{Kryo, Serializer}
 import com.tdunning.math.stats.ArrayDigest
 import io.sanfran.wikiTrends.Config
 import io.sanfran.wikiTrends.extraction.WikiUtils
 
 import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -56,18 +59,17 @@ object Regression extends App {
   def model(pageFile : String, projectName: String, outputPath: String) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
+    
 
     val indata = WikiUtils.readWikiTrafficCSV(pageFile, " ").filter( t => t.projectName.equals(projectName))
     
     val titles = indata.map(t => Tuple1(t.pageTitle))
                      .distinct(0)
                      .collect()
-                     
-    //println(titles)
     
     var allAnomaliesPerDay : DataSet[AnomaliesPerDay] = null
     
-    val iteration = 0
+    var iteration = 0
     for (page <- titles) {
       
       val data = indata.filter(t => t.pageTitle.equals(page._1))
@@ -239,7 +241,7 @@ object Regression extends App {
       //PlotIT.plotBoth(predictionsWithTime)
 
       //val diff = predictionsWithTime.map( t => new DataHourIdTime(t.orginalVisits - t.visits, t.hourId,t.year, t.month, t.day, t.hour, t.orginalVisits))
-      val diff = predictionsWithTime.map(t => new DataHourIdTime(Math.abs(t.orginalVisits - t.visits), t.hourId, t.year, t.month, t.day, t.hour, t.orginalVisits))
+      val diff = predictionsWithTime.map(t => (t.orginalVisits, t.visits, Math.abs(t.orginalVisits - t.visits), t.year, t.month, t.day, t.hour))
 
 
 
@@ -248,32 +250,46 @@ object Regression extends App {
       val compression = 100
       val pageSize = 100
 
+      /*
       val quantile = diff.map { t =>
         //val dist = TDigest.createDigest(compression)
         val dist = new ArrayDigest(pageSize, compression)
-        dist.add(t.visits)
+        dist.add(t._3)
         dist
       }.reduce { (a, b) =>
         a.add(b)
         a.compress()
         a
       }.map { t => t.quantile(0.999) }.collect().head
-
-      //PlotIT.plotDiffWithThreshold(diff, quantile)
-
-      val anomaliesPerDay = predictionsWithTime.map(t => (projectName, page._1, t.year, t.month, t.day, t.hour, Math.abs(t.orginalVisits - t.visits),t.visits, t.orginalVisits))
-                       .groupBy(0,1,2,3,4)
-                       .max(6).andMax(7).andMax(8)
-                       .map {t => new AnomaliesPerDay(t._1, t._2, t._3, t._4.toByte, t._5.toByte, t._7.toLong, t._7 / quantile, t._9 / t._8)}
-                       .filter { a => a.relativeToQuantile > 1}
+      */
       
+      val nStandarddev = 3
+      val threshold = diff.map { t => (t._3, t._3 * t._3, 1L) }
+          .reduce { (a,b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3) }
+          .map { t => nStandarddev * Math.sqrt( (t._2 / t._3) - ((t._1 / t._3) * (t._1 / t._3)) ) + (t._1 / t._3) }
+          .collect().head
+
+      PlotIT.plotDiffWithThreshold(diff, threshold, page._1)
+
+      val anomaliesPerDay = diff.filter ( t => t._3 > threshold)
+          .groupBy(3,4,5)
+          .reduce{ (a,b) =>
+            (Math.max(a._1,b._1), Math.max(a._2,b._2), Math.max(a._3,b._3), a._4, a._5, a._6, a._7)
+          }
+          .map {t => new AnomaliesPerDay(projectName, page._1, t._4, t._5.toByte, t._6.toByte, t._1.toLong, t._3 / threshold, t._1 / t._2)}
+          .filter { a => a.relativeToQuantile > 1 }
+
       if (iteration == 0) {
         allAnomaliesPerDay = anomaliesPerDay
       } else {
         allAnomaliesPerDay = allAnomaliesPerDay.union(anomaliesPerDay)
       }
+      iteration = iteration + 1
+      
+      //println("my count: " + allAnomaliesPerDay.count)
     }
 
+    //println(allAnomaliesPerDay.collect())
     allAnomaliesPerDay.writeAsCsv(outputPath + "anomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
     env.execute()
   }

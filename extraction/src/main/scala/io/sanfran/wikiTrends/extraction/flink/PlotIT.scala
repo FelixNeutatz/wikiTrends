@@ -26,6 +26,7 @@ import org.jfree.data.time.{TimeSeriesCollection, Hour, TimeSeries}
 import org.jfree.ui.RefineryUtilities
 
 object PlotIT extends App {
+  
 
   plot(Config.get("Obama.sample.path"))
 
@@ -65,13 +66,13 @@ object PlotIT extends App {
     demo.setVisible(true)
   }
   
-  def plotDiffWithThreshold(data: DataSet[DataHourIdTime], threshold: Double): Unit = {
+  def plotDiffWithThreshold(data: DataSet[(Double, Double, Double, Short, Short, Short, Short)], threshold: Double, page: String): Unit = {
     val dataLocal = data.collect().toList
-    val s: TimeSeries = new TimeSeries("Wikipedia Traffic difference", classOf[Hour])
-    val s2: TimeSeries = new TimeSeries("Quantile threshold", classOf[Hour])
+    val s: TimeSeries = new TimeSeries("Wikipedia Traffic difference for page: " + page, classOf[Hour])
+    val s2: TimeSeries = new TimeSeries("threshold", classOf[Hour])
     for (t <- dataLocal) {
-      s.add(new Hour(t.hour, t.day, t.month, t.year), t.visits)
-      s2.add(new Hour(t.hour, t.day, t.month, t.year), threshold)
+      s.add(new Hour(t._7, t._6, t._5, t._4), t._3)
+      s2.add(new Hour(t._7, t._6, t._5, t._4), threshold)
     }
 
     val dataset: TimeSeriesCollection = new TimeSeriesCollection
