@@ -124,7 +124,7 @@ object MovingAverage extends App {
     var currStartDate = new Date(startDate._5, startDate._6 - 1, startDate._7, startDate._8, 0)
     var currEndDate = DateUtils.addHours(currStartDate, windowSize)
 
-    var full_averages_variances: DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = null
+    //var full_averages_variances: DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = null
 
     while (currEndDate.before(finalEndDate)) {
       val currMidDate = DateUtils.addHours(currStartDate, windowSize / 2)
@@ -150,19 +150,20 @@ object MovingAverage extends App {
 
       average_variance.writeAsCsv(output_path + "averages_variances_" + currMidDate.getYear + String.format("%02d", currMidDate.getMonth + 1: Integer) + String.format("%02d", currMidDate.getDate: Integer) + "-" + String.format("%02d", currMidDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
-
+      /*
       if (full_averages_variances == null) {
         full_averages_variances = average_variance
       } else {
         full_averages_variances = full_averages_variances.union(average_variance)
       }
+      */
 
 
       currStartDate = DateUtils.addHours(currStartDate, sliceSize)
       currEndDate = DateUtils.addHours(currEndDate, sliceSize)
     }
 
-
+    /*
     val anomalyData = full_averages_variances.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5           6             7                8                 9     10    11  12
       // project  name  counts traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
@@ -190,7 +191,7 @@ object MovingAverage extends App {
     anomalies10std.writeAsCsv(output_path + "anomalies10std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
     //movingAverage(data, windowSize, sliceSize, date, 1, path, env)
-
+    */
     env.execute()
 
   }

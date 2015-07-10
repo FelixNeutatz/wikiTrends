@@ -20,6 +20,7 @@ package io.sanfran.wikiTrends.extraction.flink
 
 import java.util.Date
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 object DateUtils {
 
@@ -35,5 +36,10 @@ object DateUtils {
     cal.setTime(date)
     cal.add(Calendar.HOUR, hours)
     return cal.getTime()
+  }
+
+  def diffDays(date1: Date, date2: Date) : Long = {
+    val diff = date2.getTime() - date1.getTime();
+    return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
   }
 }
