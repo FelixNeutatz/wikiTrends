@@ -131,32 +131,34 @@ object MovingAverageFlinkIteration extends App {
 
     val averages_variances : DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = env.fromCollection(List())
 
-    val iterations = DateUtils.diffDays(currStartDate, finalEndDate) - windowSize / 24
+    val iterations = (DateUtils.diffDays(currStartDate, finalEndDate) - windowSize / 24) + 1
 
-    val result = averages_variances.iterateDelta(data, iterations.toInt, Array(0,1)) {
+    val result = averages_variances.iterateDelta(data, iterations.toInt, Array(0,1,6,7,8)) {
 
-      (averages_variances, data) =>
-        val filteredData = data.flatMap(new WindowFilter(windowSize, sliceSize)).withBroadcastSet(startDateSet, "startdate")
+      (averages_variances, dataIter) =>
+        val filteredData = dataIter.flatMap(new WindowFilter(windowSize, sliceSize)).withBroadcastSet(startDateSet, "startdate")
 
         // 1        2     3               4               5               6                 7     8     9
         // project  name  average_counts  average_traffic variance_counts variance_traffic  year  month day
         val average_variance = filteredData
-          .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4, 1) }
+          .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4, 1L) }
           .groupBy(0, 1)
           .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + b._5, a._6 + b._6, a._7 + b._7) }
           .filter { t => t._7 > 1}
           .map(new AverageVarianceCalculator(windowSize, sliceSize)).withBroadcastSet(startDateSet, "startdate")
 
-        val new_averages_variances = averages_variances.coGroup(average_variance).where(0,1).equalTo(0,1) {
+        val new_averages_variances = averages_variances.coGroup(average_variance).where(0,1,6,7,8).equalTo(0,1,6,7,8) {
           (oldData, newData, out: Collector[(String, String, Double, Double, Double, Double, Short, Byte, Byte)]) =>
+
             for (oD <- oldData) {
               out.collect(oD)
             }
+
             for (nD <- newData) {
               out.collect(nD)
             }
         }
-        (new_averages_variances, data)
+        (new_averages_variances, dataIter)
     }
 
 
@@ -186,7 +188,7 @@ object MovingAverageFlinkIteration extends App {
     */
     val anomalies10std = anomalyData.filter(t => t._7 > 5 || t._8 > 5)
 
-    anomalies10std.writeAsCsv(output_path + "anomalies5std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    anomalies10std.writeAsCsv(output_path + "anomalies5std2", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
     env.execute()
 
@@ -236,36 +238,45 @@ object MovingAverageFlinkIteration extends App {
 
   }
 
-  class AverageVarianceCalculator(windowSize : Int, sliceSize : Int) extends RichMapFunction[(String, String, Long, Long, Long, Long, Int), (String, String, Double, Double, Double, Double, Short, Byte, Byte)] {
+  class AverageVarianceCalculator(windowSize : Int, sliceSize : Int) extends RichMapFunction[(String, String, Long, Long, Long, Long, Long), (String, String, Double, Double, Double, Double, Short, Byte, Byte)] {
     var midDate : Date = null
 
     override def open(config: Configuration): Unit = {
-      val currentIteration = getIterationRuntimeContext().getSuperstepNumber()
-      var startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
+      val currentIteration = getIterationRuntimeContext().getSuperstepNumber() - 1
+      val startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
       midDate = new Date(startDateSet._5, startDateSet._6 - 1, startDateSet._7, startDateSet._8, 0)
       midDate = DateUtils.addHours(midDate, currentIteration * sliceSize + windowSize / 2)
+      println("midDate: " + midDate + " Iteration: " + currentIteration)
     }
-    def map(in: (String, String, Long, Long, Long, Long, Int)): (String, String, Double, Double, Double, Double, Short, Byte, Byte) = {
-      (in._1, in._2, in._3.toDouble / windowSize, in._4.toDouble / windowSize, in._5.toDouble / windowSize - (in._3.toDouble / windowSize) * (in._3.toDouble / windowSize), in._6.toDouble / windowSize - (in._4.toDouble / windowSize) * (in._4.toDouble / windowSize), midDate.getYear.toShort, (midDate.getMonth + 1).toByte, midDate.getDate.toByte)
+    def map(in: (String, String, Long, Long, Long, Long, Long)): (String, String, Double, Double, Double, Double, Short, Byte, Byte) = {
+      (in._1, in._2, in._3.toDouble / in._7, in._4.toDouble / in._7, in._5.toDouble / in._7 - (in._3.toDouble / in._7) * (in._3.toDouble / in._7), in._6.toDouble / in._7 - (in._4.toDouble / in._7) * (in._4.toDouble / in._7), midDate.getYear.toShort, (midDate.getMonth + 1).toByte, midDate.getDate.toByte)
     }
   }
 
   class WindowFilter(windowSize : Int, sliceSize : Int) extends RichFlatMapFunction[(String, String, Long, Long, Short, Byte, Byte, Byte),(String, String, Long, Long, Short, Byte, Byte, Byte)] {
     var startDate : Date = null
     var endDate : Date = null
+    var i : Int = 0
+    var currentIteration : Int  = 0
 
     override def open(config: Configuration): Unit = {
-      val currentIteration = getIterationRuntimeContext().getSuperstepNumber()
-      var startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
+      currentIteration = getIterationRuntimeContext().getSuperstepNumber() - 1
+      val startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
       startDate = new Date(startDateSet._5, startDateSet._6 - 1, startDateSet._7, startDateSet._8, 0)
       startDate = DateUtils.addHours(startDate, currentIteration * sliceSize)
       endDate = DateUtils.addHours(startDate, windowSize)
+      println("startDate: " + startDate + " endDate: " + endDate + " Iteration: " + currentIteration)
     }
     override def flatMap(in: (String, String, Long, Long, Short, Byte, Byte, Byte), collector: Collector[(String, String, Long, Long, Short, Byte, Byte, Byte)]): Unit = {
       val date = new Date(in._5, in._6 - 1, in._7, in._8, 0)
       if(!date.before(startDate) && !date.after(endDate)) {
         collector.collect(in)
+        i += 1
       }
+    }
+
+    override def close(): Unit = {
+      println("Iteration: " + currentIteration + " DataSize:" + i)
     }
   }
 }

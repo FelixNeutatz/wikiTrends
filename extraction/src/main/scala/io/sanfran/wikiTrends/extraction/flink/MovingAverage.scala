@@ -124,10 +124,12 @@ object MovingAverage extends App {
     var currStartDate = new Date(startDate._5, startDate._6 - 1, startDate._7, startDate._8, 0)
     var currEndDate = DateUtils.addHours(currStartDate, windowSize)
 
-    //var full_averages_variances: DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = null
+    var full_averages_variances: DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = null
 
     while (currEndDate.before(finalEndDate)) {
       val currMidDate = DateUtils.addHours(currStartDate, windowSize / 2)
+
+      println("startDate: " + currStartDate + " endDate: " + currEndDate + " midDate: " + currMidDate)
 
       val filteredData = data.filter {
         t =>
@@ -135,12 +137,14 @@ object MovingAverage extends App {
           !date.before(currStartDate) && !date.after(currEndDate)
       }
 
+      println("Date: " + currMidDate + "DataSize: " + filteredData.count())
+
       //println("filtered data count: " + filteredData.map( t => (t._1, t._2, 1)).groupBy(0,1).sum(2).collect())
 
       // 1        2     3               4               5               6                 7     8     9
       // project  name  average_counts  average_traffic variance_counts variance_traffic  year  month day
       val average_variance = filteredData
-        .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4, 1) }
+        .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4, 1L) }
         .groupBy(0, 1)
         .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + b._5, a._6 + b._6, a._7 + b._7) }
         .filter { t => t._7 > 1}
@@ -150,26 +154,26 @@ object MovingAverage extends App {
 
       average_variance.writeAsCsv(output_path + "averages_variances_" + currMidDate.getYear + String.format("%02d", currMidDate.getMonth + 1: Integer) + String.format("%02d", currMidDate.getDate: Integer) + "-" + String.format("%02d", currMidDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
-      /*
+
       if (full_averages_variances == null) {
         full_averages_variances = average_variance
       } else {
         full_averages_variances = full_averages_variances.union(average_variance)
       }
-      */
+
 
 
       currStartDate = DateUtils.addHours(currStartDate, sliceSize)
       currEndDate = DateUtils.addHours(currEndDate, sliceSize)
     }
 
-    /*
+
     val anomalyData = full_averages_variances.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5           6             7                8                 9     10    11  12
       // project  name  counts traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
       (a, b) => (a._1, a._2, b._3, b._4, Math.abs(a._3 - b._3), Math.abs(a._4 - b._4), Math.abs(a._3 - b._3) / Math.sqrt(a._5), Math.abs(a._4 - b._4) / Math.sqrt(a._6), a._7, a._8, a._9, b._8)
     }
-
+    /*
     val anomalies2std = anomalyData.filter(t => t._7 > 2 || t._8 > 2)
 
     anomalies2std.writeAsCsv(output_path + "anomalies2std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
@@ -181,11 +185,11 @@ object MovingAverage extends App {
     val anomalies4std = anomalyData.filter(t => t._7 > 4 || t._8 > 4)
 
     anomalies4std.writeAsCsv(output_path + "anomalies4std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
-
+    */
     val anomalies5std = anomalyData.filter(t => t._7 > 5 || t._8 > 5)
 
     anomalies5std.writeAsCsv(output_path + "anomalies5std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
-
+    /*
     val anomalies10std = anomalyData.filter(t => t._7 > 10 || t._8 > 10)
 
     anomalies10std.writeAsCsv(output_path + "anomalies10std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
@@ -222,7 +226,7 @@ object MovingAverage extends App {
           .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4) }
           .groupBy(0, 1)
           .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + a._5, a._6 + a._6) }
-          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth + 1, midDate.getDate) }
+          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear.toShort, (midDate.getMonth + 1).toByte, midDate.getDate.toByte) }
 
         average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth + 1: Integer) + String.format("%02d", midDate.getDate: Integer) + "-" + String.format("%02d", midDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
