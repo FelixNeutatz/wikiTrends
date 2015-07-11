@@ -24,7 +24,7 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
 
-object PlotPage extends App {
+object PlotPageRegression extends App {
 
   override def main(args: Array[String]) {
     super.main(args)

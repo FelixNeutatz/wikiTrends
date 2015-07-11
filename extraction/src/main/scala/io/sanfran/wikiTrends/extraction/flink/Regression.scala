@@ -30,7 +30,7 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.ml._
 
-import org.joda.time._
+import java.util.Date
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
@@ -86,23 +86,21 @@ object Regression extends App {
 
     //println("startdate: " + startDate.collect())
 
-    val timezone = DateTimeZone.forID("America/Los_Angeles")
-
     val dataHour = data.map(new RichMapFunction[WikiTrafficID, DataHourIdTime]() {
-      var beginDate: DateTime = null
+      var beginDate: Date = null
 
       override def open(config: Configuration): Unit = {
 
         val startDate = getRuntimeContext().getBroadcastVariable[WikiTrafficID]("startDate").iterator().next()
 
-        beginDate = new DateTime(startDate.year, startDate.month, startDate.day, startDate.hour, 0, 0, timezone)
+        beginDate = new Date(startDate.year, startDate.month -1 , startDate.day, startDate.hour, 0)
       }
 
       def map(t: WikiTrafficID): DataHourIdTime = {
 
-        val currentDate = new DateTime(t.year, t.month, t.day, t.hour, 0, 0, timezone)
+        val currentDate = new Date(t.year, t.month - 1, t.day, t.hour, 0)
 
-        val differenceHours = Hours.hoursBetween(beginDate, currentDate).getHours.toLong
+        val differenceHours = DateUtils.diffHours(beginDate, currentDate)
 
         //new DataHourIdTime(Math.log(t.requestNumber), differenceHours, t.year, t.month, t.day, t.hour)
         new DataHourIdTime(t.requestNumber, differenceHours, t.year, t.month, t.day, t.hour, t.requestNumber)

@@ -94,8 +94,8 @@ object PlotIT extends App {
     val s: TimeSeries = new TimeSeries(series1Name, classOf[Hour])
     val s2: TimeSeries = new TimeSeries(series2Name, classOf[Hour])
     for (t <- dataLocal) {
-      s.add(new Hour(t.hour, t.day, t.month, t.year), t.series1)
-      s2.add(new Hour(t.hour, t.day, t.month, t.year), t.series2)
+      s.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series1)
+      s2.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series2)
     }
 
     val dataset: TimeSeriesCollection = new TimeSeriesCollection

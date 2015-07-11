@@ -42,4 +42,9 @@ object DateUtils {
     val diff = date2.getTime() - date1.getTime();
     return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
   }
+
+  def diffHours(date1: Date, date2: Date) : Long = {
+    val diff = date2.getTime() - date1.getTime();
+    return TimeUnit.HOURS.convert(diff, TimeUnit.MILLISECONDS)
+  }
 }
