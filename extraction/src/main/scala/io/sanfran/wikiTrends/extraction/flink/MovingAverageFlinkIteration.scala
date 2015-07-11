@@ -22,6 +22,7 @@ import java.util.Date
 
 import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.common.functions.{RichFlatMapFunction, RichMapFunction}
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -34,7 +35,7 @@ object MovingAverageFlinkIteration extends App {
     super.main(args)
 
     if (args.length < 2) {
-      println("Please add the path of files as argument")
+      //println("Please add the path of files as argument")
       return
     }
     val input_path = args(0)
@@ -46,7 +47,7 @@ object MovingAverageFlinkIteration extends App {
       windowSize = Integer.parseInt(args(2))
       sliceSize = Integer.parseInt(args(3))
     } else {
-      windowSize = 7 * 24 //in hours
+      windowSize = 30 * 24 //in hours
       sliceSize = 24 //in hours
     }
 
@@ -144,8 +145,9 @@ object MovingAverageFlinkIteration extends App {
           .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4, 1L) }
           .groupBy(0, 1)
           .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + b._5, a._6 + b._6, a._7 + b._7) }
-          .filter { t => t._7 > 1}
+          .filter { t => t._7 > 1 }
           .map(new AverageVarianceCalculator(windowSize, sliceSize)).withBroadcastSet(startDateSet, "startdate")
+          .filter( t => t._5 != 0 && t._6 != 0)
 
         val new_averages_variances = averages_variances.coGroup(average_variance).where(0,1,6,7,8).equalTo(0,1,6,7,8) {
           (oldData, newData, out: Collector[(String, String, Double, Double, Double, Double, Short, Byte, Byte)]) =>
@@ -161,6 +163,8 @@ object MovingAverageFlinkIteration extends App {
         (new_averages_variances, dataIter)
     }
 
+    //println("Result count: " + result.count())
+    //println("Data count: " + data.count())
 
     val anomalyData = result.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5           6             7                8                 9     10    11  12
@@ -186,55 +190,17 @@ object MovingAverageFlinkIteration extends App {
     anomalies5std.writeAsCsv(output_path + "anomalies5std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
     */
-    val anomalies10std = anomalyData.filter(t => t._7 > 5 || t._8 > 5)
+    val anomalies10std = anomalyData.filter(t => t._7 > 1 || t._8 > 1)
 
-    anomalies10std.writeAsCsv(output_path + "anomalies5std2", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    anomalies10std.writeAsCsv(output_path + "anomalies10std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
-    env.execute()
+    anomalyData.groupBy(0)
+      .sortGroup(6, Order.DESCENDING)
+      .first(10)
+      .print
 
-  }
 
-  def readFiles(date: Date, size: Int, path: String, env: ExecutionEnvironment) = {
-    var currDate = date
-    var data: DataSet[(String, String, Long, Long, Short, Byte, Byte, Byte)] = null
-    for (i <- 0 until size) {
-      val fileString = "pagecounts-" + currDate.getYear + String.format("%02d", currDate.getMonth + 1: Integer) + String.format("%02d", currDate.getDate: Integer) + "-" + String.format("%02d", currDate.getHours: Integer) + "*"
-      val newData = WikiUtils.readWikiTrafficTuple(path + fileString, env)
-      if (i == 0) {
-        data = newData
-      } else {
-        data = data.union(newData)
-      }
-      currDate = DateUtils.addHours(currDate, 1)
-    }
-    data
-  }
-
-  def movingAverage(data: DataSet[(String, String, Long, Long, Short, Byte, Byte, Byte)], windowSize: Integer, sliceSize: Integer, date: Date, iterations: Integer, path: String, env: ExecutionEnvironment) = {
-    var currDate = date
-    var currEndDate = DateUtils.addHours(date, windowSize)
-    val iteration = data.iterate(iterations) {
-      batch => {
-        val midDate = DateUtils.addHours(currDate, windowSize / 2)
-        val average_variance = batch
-          .map { a => (a._1, a._2, a._3, a._4, a._3 * a._3, a._4 * a._4) }
-          .groupBy(0, 1)
-          .reduce { (a, b) => (a._1, a._2, a._3 + b._3, a._4 + b._4, a._5 + a._5, a._6 + a._6) }
-          .map { a => (a._1, a._2, a._3.toDouble / windowSize, a._4.toDouble / windowSize, a._5.toDouble / windowSize - (a._3.toDouble / windowSize) * (a._3.toDouble / windowSize), a._6.toDouble / windowSize - (a._4.toDouble / windowSize) * (a._4.toDouble / windowSize), midDate.getYear, midDate.getMonth + 1, midDate.getDate) }
-
-        average_variance.writeAsCsv(path + "averages_variances_" + midDate.getYear + String.format("%02d", midDate.getMonth + 1: Integer) + String.format("%02d", midDate.getDate: Integer) + "-" + String.format("%02d", midDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
-
-        //read in and union new batch slice (days)
-        currDate = DateUtils.addHours(currDate, sliceSize)
-        //filter out old batch slice (days)
-        var newBatch = batch.filter { a => a._5 > currDate.getYear || (a._5 == currDate.getYear && a._6 > currDate.getMonth + 1) || (a._5 == currDate.getYear && a._6 == currDate.getMonth + 1 && a._7 > currDate.getDate) || (a._5 == currDate.getYear && a._6 == currDate.getMonth + 1 && a._7 == currDate.getDate && a._8 >= currDate.getHours) }
-        newBatch = newBatch.union(readFiles(currEndDate, sliceSize, path, env))
-        currEndDate = DateUtils.addHours(currEndDate, sliceSize)
-        newBatch
-      }
-      //}
-      //}
-    }
+    //env.execute()
 
   }
 
@@ -246,7 +212,7 @@ object MovingAverageFlinkIteration extends App {
       val startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
       midDate = new Date(startDateSet._5, startDateSet._6 - 1, startDateSet._7, startDateSet._8, 0)
       midDate = DateUtils.addHours(midDate, currentIteration * sliceSize + windowSize / 2)
-      println("midDate: " + midDate + " Iteration: " + currentIteration)
+      //println("midDate: " + midDate + " Iteration: " + currentIteration)
     }
     def map(in: (String, String, Long, Long, Long, Long, Long)): (String, String, Double, Double, Double, Double, Short, Byte, Byte) = {
       (in._1, in._2, in._3.toDouble / in._7, in._4.toDouble / in._7, in._5.toDouble / in._7 - (in._3.toDouble / in._7) * (in._3.toDouble / in._7), in._6.toDouble / in._7 - (in._4.toDouble / in._7) * (in._4.toDouble / in._7), midDate.getYear.toShort, (midDate.getMonth + 1).toByte, midDate.getDate.toByte)
@@ -260,12 +226,13 @@ object MovingAverageFlinkIteration extends App {
     var currentIteration : Int  = 0
 
     override def open(config: Configuration): Unit = {
+      i = 0
       currentIteration = getIterationRuntimeContext().getSuperstepNumber() - 1
       val startDateSet = getRuntimeContext.getBroadcastVariable[(String, String, Long, Long, Short, Byte, Byte, Byte)]("startdate").get(0)
       startDate = new Date(startDateSet._5, startDateSet._6 - 1, startDateSet._7, startDateSet._8, 0)
       startDate = DateUtils.addHours(startDate, currentIteration * sliceSize)
       endDate = DateUtils.addHours(startDate, windowSize)
-      println("startDate: " + startDate + " endDate: " + endDate + " Iteration: " + currentIteration)
+      //println("startDate: " + startDate + " endDate: " + endDate + " Iteration: " + currentIteration)
     }
     override def flatMap(in: (String, String, Long, Long, Short, Byte, Byte, Byte), collector: Collector[(String, String, Long, Long, Short, Byte, Byte, Byte)]): Unit = {
       val date = new Date(in._5, in._6 - 1, in._7, in._8, 0)
@@ -276,7 +243,7 @@ object MovingAverageFlinkIteration extends App {
     }
 
     override def close(): Unit = {
-      println("Iteration: " + currentIteration + " DataSize:" + i)
+      //println("Iteration: " + currentIteration + " DataSize:" + i)
     }
   }
 }

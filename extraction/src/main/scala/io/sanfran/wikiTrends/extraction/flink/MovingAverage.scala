@@ -167,6 +167,8 @@ object MovingAverage extends App {
       currEndDate = DateUtils.addHours(currEndDate, sliceSize)
     }
 
+    println("Result Count: " + full_averages_variances.count())
+    println("Data Count: " + data.count())
 
     val anomalyData = full_averages_variances.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5           6             7                8                 9     10    11  12
