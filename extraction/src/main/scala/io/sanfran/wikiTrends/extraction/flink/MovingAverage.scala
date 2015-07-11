@@ -22,6 +22,9 @@ import java.util.Date
 import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.util.Collector
+
+import scala.collection.mutable
 
 
 object MovingAverage extends App {
@@ -30,7 +33,7 @@ object MovingAverage extends App {
     super.main(args)
 
     if (args.length < 2) {
-      println("Please add the path of files as argument")
+      //println("Please add the path of files as argument")
       return
     }
     val input_path = args(0)
@@ -50,7 +53,8 @@ object MovingAverage extends App {
 
     // 1        2     3       4       5     6     7   8
     // project  name  counts  traffic year  month day hour
-    val data = WikiUtils.readWikiTrafficCSVTuple(input_path, " ")
+    val data = WikiUtils.readWikiTrafficCSVTuple(input_path, " ").filter( t => t._1.equals("en") && t._2.equals("Game_of_Thrones"))
+
 
     val startDateSet = data.reduce { (a, b) =>
       var result: (String, String, Long, Long, Short, Byte, Byte, Byte) = a
@@ -126,10 +130,12 @@ object MovingAverage extends App {
 
     var full_averages_variances: DataSet[(String, String, Double, Double, Double, Double, Short, Byte, Byte)] = null
 
+    var fullAvgvarList = new mutable.MutableList[(String, String, Double, Double, Double, Double, Short, Byte, Byte)]()
+
     while (currEndDate.before(finalEndDate)) {
       val currMidDate = DateUtils.addHours(currStartDate, windowSize / 2)
 
-      println("startDate: " + currStartDate + " endDate: " + currEndDate + " midDate: " + currMidDate)
+      //println("startDate: " + currStartDate + " endDate: " + currEndDate + " midDate: " + currMidDate)
 
       val filteredData = data.filter {
         t =>
@@ -137,7 +143,7 @@ object MovingAverage extends App {
           !date.before(currStartDate) && !date.after(currEndDate)
       }
 
-      println("Date: " + currMidDate + "DataSize: " + filteredData.count())
+      //println("Date: " + currMidDate + "DataSize: " + filteredData.count())
 
       //println("filtered data count: " + filteredData.map( t => (t._1, t._2, 1)).groupBy(0,1).sum(2).collect())
 
@@ -154,21 +160,45 @@ object MovingAverage extends App {
 
       average_variance.writeAsCsv(output_path + "averages_variances_" + currMidDate.getYear + String.format("%02d", currMidDate.getMonth + 1: Integer) + String.format("%02d", currMidDate.getDate: Integer) + "-" + String.format("%02d", currMidDate.getHours: Integer), writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
-
+      /*
       if (full_averages_variances == null) {
         full_averages_variances = average_variance
       } else {
         full_averages_variances = full_averages_variances.union(average_variance)
       }
+      */
 
+      fullAvgvarList = fullAvgvarList ++ average_variance.collect()
+
+      /*
+      if (full_averages_variances == null) {
+        full_averages_variances = average_variance
+      } else {
+        full_averages_variances = full_averages_variances.coGroup(average_variance).where(0, 1).equalTo(0, 1) {
+          (oldData, newData, out: Collector[(String, String, Double, Double, Double, Double, Short, Byte, Byte)]) =>
+
+            for (oD <- oldData) {
+              out.collect(oD)
+            }
+
+            for (nD <- newData) {
+              out.collect(nD)
+            }
+        }
+      }
+      */
 
 
       currStartDate = DateUtils.addHours(currStartDate, sliceSize)
       currEndDate = DateUtils.addHours(currEndDate, sliceSize)
     }
 
-    println("Result Count: " + full_averages_variances.count())
-    println("Data Count: " + data.count())
+    //println("Result Count: " + full_averages_variances.count())
+    //println("Data Count: " + data.count())
+
+    fullAvgvarList.foreach(println)
+
+    full_averages_variances = env.fromCollection(fullAvgvarList)
 
     val anomalyData = full_averages_variances.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5           6             7                8                 9     10    11  12
@@ -188,9 +218,9 @@ object MovingAverage extends App {
 
     anomalies4std.writeAsCsv(output_path + "anomalies4std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
     */
-    val anomalies5std = anomalyData.filter(t => t._7 > 5 || t._8 > 5)
+    //val anomalies5std = anomalyData.filter(t => t._7 > 5 || t._8 > 5)
 
-    anomalies5std.writeAsCsv(output_path + "anomalies5std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    anomalyData.writeAsCsv(output_path + "anomalies_normalIterate", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
     /*
     val anomalies10std = anomalyData.filter(t => t._7 > 10 || t._8 > 10)
 
