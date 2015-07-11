@@ -36,13 +36,16 @@ object TopAnomalies extends App {
     
     val anomalies = WikiUtils.readAnomCSVTuple(pageFile)
     
+    /*
     val topK = anomalies.groupBy(2,3,4)
         .sortGroup(6, Order.DESCENDING)
         .first(k)
         .distinct(0,1)
-        .collect()
+        .collect()*/
     
-    topK.sortWith(_._7 < _._7).foreach(println)
+    val topK = anomalies.collect()
+    
+    topK.sortWith(_._7 > _._7).foreach(println)
     
   }
 

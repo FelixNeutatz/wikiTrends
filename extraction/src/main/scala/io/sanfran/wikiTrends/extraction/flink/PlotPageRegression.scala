@@ -31,12 +31,15 @@ object PlotPageRegression extends App {
     plotPage(args(0), args(1), args(2), args(3))
   } 
 
-  def plotPage(pageFile : String, projectName: String, page: String, outputPath: String) = {
+  def plotPage(inputPath: String, projectName: String, page: String, outputPath: String) = {
 
-    implicit val env = ExecutionEnvironment.getExecutionEnvironment
+    implicit val env = ExecutionEnvironment.getExecutionEnvironment    
+
+    val data = WikiUtils.readWikiTrafficCSV(inputPath, " ").filter( t => t.projectName.equals(projectName) && t.pageTitle.equals(page))
     
-
-    val data = WikiUtils.readWikiTrafficCSV(pageFile, " ").filter( t => t.projectName.equals(projectName) && t.pageTitle.equals(page))
+    if (data.count() == 0) {
+      throw new Exception("Page not found")
+    }
     
     val result = Regression.applyRegression(data)
       
