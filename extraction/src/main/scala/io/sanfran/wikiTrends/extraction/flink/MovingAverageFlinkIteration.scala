@@ -64,10 +64,18 @@ object MovingAverageFlinkIteration extends App {
     // project  name  counts traffic average_counts  average_traffic variance_counts variance_traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
     val anomalyData = applyMovingAverage(data, windowSize, sliceSize, env)
 
+    val anomaliesPerDay = anomalyData
+      .map( a=> (a._1, a._2, a._3, a._11, a._3 / a._5, a._13, a._14, a._15))
+      .groupBy(0,1,4,5,6)
+      .reduce{
+        (a,b) => (a._1, a._2, Math.max(a._3, b._3), Math.max(a._4, b._4), Math.max(a._5, b._5), a._6, a._7, a._8)
+      }.map(a => new AnomaliesPerDay(a._1, a._2, a._6, a._7, a._8, a._3, a._4, a._5))
+      .filter(t => t.relativeToQuantile > 3)
 
-    anomalyData.writeAsCsv(output_path + "allAnomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    anomaliesPerDay.writeAsCsv(output_path + "allAnomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
 
     //print anomalies
+    /*
     val anomalies2std = anomalyData.filter(t => t._11 > 2)
 
     anomalies2std.writeAsCsv(output_path + "anomalies2std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
@@ -87,6 +95,7 @@ object MovingAverageFlinkIteration extends App {
     val anomalies10std = anomalyData.filter(t => t._11 > 6)
 
     anomalies10std.writeAsCsv(output_path + "anomalies10std", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    */
 
     env.execute()
 
@@ -169,8 +178,8 @@ object MovingAverageFlinkIteration extends App {
 
     val iterations = (DateUtils.diffDays(initalStartDate, finalEndDate) - windowSize / 24) + 1
 
-    println("Iterations: " + iterations)
-    println("DiffDays: " + DateUtils.diffDays(initalStartDate, finalEndDate))
+    //println("Iterations: " + iterations)
+    //println("DiffDays: " + DateUtils.diffDays(initalStartDate, finalEndDate))
 
     val result = averages_variances.iterateDelta(data, iterations.toInt, Array(0, 1, 6, 7, 8)) {
 
@@ -201,8 +210,8 @@ object MovingAverageFlinkIteration extends App {
         (new_averages_variances, dataIter)
     }
 
-    println("Result count: " + result.count())
-    println("Data count: " + data.count())
+    //println("Result count: " + result.count())
+    //println("Data count: " + data.count())
 
     val anomalyData = result.join(data).where(0, 1, 6, 7, 8).equalTo(0, 1, 4, 5, 6) {
       // 1        2     3      4       5               6               7               8                9           10            11               12                13    14    15  16
