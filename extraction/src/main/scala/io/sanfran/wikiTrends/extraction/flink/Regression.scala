@@ -54,7 +54,7 @@ object Regression extends App {
     model(args(0), args(1), args(2))
   }
   
-  def applyRegression(data: DataSet[WikiTrafficID]) = {
+  def applyRegression(data: DataSet[WikiTrafficID], gridSearch: Boolean = false) = {
     val startDate = data.reduce { (a, b) =>
       var result: WikiTrafficID = a
       if (a.hour < b.hour) {
@@ -148,39 +148,41 @@ object Regression extends App {
       new DenseVector(x)
     }
 
-    val map1 = new scala.collection.mutable.HashMap[Double, Double]()
+    var bestStepSize = 0.000000005
+    
+    if (gridSearch) {
+      val map1 = new scala.collection.mutable.HashMap[Double, Double]()
 
-    //find best step size by grid search
-    for (stepsize <- List(//0.5, 0.3, 0.1, 
-      //0.05, 0.03, 0.01, 
-      //0.005, 0.003, 0.001, 
-      //0.0005, 0.0003, 0.0001, 
-      //0.00005, 0.00003, 0.00001, 
-      //0.000005, 0.000003, 0.000001, 
-      //0.0000005, 0.0000003, 0.0000001,
-      //0.00000005, 0.00000003, 0.00000001,
-      0.000000005, 0.000000003, 0.000000001
-      //0.0000000005, 0.0000000003, 0.0000000001,
-      //0.00000000005, 0.00000000003, 0.00000000001,
-      //0.000000000005, 0.000000000003, 0.000000000001
-    )
-    ) {
+      //find best step size by grid search
+      for (stepsize <- List(//0.5, 0.3, 0.1, 
+        //0.05, 0.03, 0.01, 
+        //0.005, 0.003, 0.001, 
+        //0.0005, 0.0003, 0.0001, 
+        //0.00005, 0.00003, 0.00001, 
+        //0.000005, 0.000003, 0.000001, 
+        //0.0000005, 0.0000003, 0.0000001,
+        //0.00000005, 0.00000003, 0.00000001,
+        0.000000005, 0.000000003, 0.000000001
+        //0.0000000005, 0.0000000003, 0.0000000001,
+        //0.00000000005, 0.00000000003, 0.00000000001,
+        //0.000000000005, 0.000000000003, 0.000000000001
+      )
+      ) {
 
-      val mlr = MultipleLinearRegression()
-          .setIterations(10)
-          .setStepsize(stepsize)
+        val mlr = MultipleLinearRegression()
+            .setIterations(10)
+            .setStepsize(stepsize)
 
-      mlr.fit(trainingDS)
+        mlr.fit(trainingDS)
 
-      val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
-      map1 += new Tuple2(stepsize, srs)
+        val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
+        map1 += new Tuple2(stepsize, srs)
 
-      val predictions = mlr.predict(testDS)
+        val predictions = mlr.predict(testDS)
+      }
 
-      predictions.count()
+      bestStepSize = map1.toSeq.sortBy(_._1).reverse(0)._1
     }
-
-    val bestStepSize = map1.toSeq.sortBy(_._1).reverse(0)._1
 
     //final run
     val mlr = MultipleLinearRegression()
