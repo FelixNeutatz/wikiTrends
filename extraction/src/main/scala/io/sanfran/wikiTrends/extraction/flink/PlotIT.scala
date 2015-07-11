@@ -106,7 +106,7 @@ object PlotIT extends App {
     val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset)
     
     if (output != null) {
-      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1Name + " - " + series2Name), demo.getJFreeChart, 1024, 768)
+      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1Name + " - " + series2Name), demo.getJFreeChart, 1120, 700)
     } else{
       demo.pack()
       RefineryUtilities.centerFrameOnScreen(demo)

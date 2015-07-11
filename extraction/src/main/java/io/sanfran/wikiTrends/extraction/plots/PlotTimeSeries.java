@@ -34,6 +34,7 @@ import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
+import java.awt.BasicStroke;
 
 public class PlotTimeSeries extends ApplicationFrame {
 	
@@ -78,6 +79,11 @@ public class PlotTimeSeries extends ApplicationFrame {
       XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
       renderer.setBaseShapesVisible(false); // if you want visible dots -> true
       renderer.setBaseShapesFilled(false); // if you want visible dots -> true
+			
+			
+			renderer.setSeriesStroke(0,new BasicStroke(2.0f));
+			renderer.setSeriesStroke(1,new BasicStroke(2.0f));
+			
     }
 
     DateAxis axis = (DateAxis) plot.getDomainAxis();
