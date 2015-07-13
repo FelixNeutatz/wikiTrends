@@ -23,15 +23,16 @@ import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
+import org.apache.flink.core.fs.FileSystem.WriteMode
 
 object PlotPageRegression extends App {
 
   override def main(args: Array[String]) {
     super.main(args)
-    plotPage(args(0), args(1), args(2), args(3))
+    plotPage(args(0), args(1), args(2), args(3), args(4).toBoolean)
   } 
 
-  def plotPage(inputPath: String, projectName: String, page: String, outputPath: String) = {
+  def plotPage(inputPath: String, projectName: String, page: String, outputPath: String, generatePlots: Boolean) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment    
 
@@ -42,21 +43,28 @@ object PlotPageRegression extends App {
     }
     
     val result = Regression.applyRegression(data)
-      
+
     val diff = result._1
     val threshold = result._2
-
-    val model = diff.map {t => TwoSeriesPlot(t._1, t._2, t._4, t._5, t._6, t._7)}
-
-    PlotIT.plotBoth(model, "original wikitraffic", "regression model", page, outputPath)
     
-    val diffWithThreshold = diff.map {t => TwoSeriesPlot(t._3, threshold, t._4, t._5, t._6, t._7)}
+    if (!generatePlots) {
+      result._1.map { t => (t._1, t._2, t._3, t._4, t._5, t._6, t._7, threshold) }.writeAsCsv(outputPath + "plot", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+      env.execute()
+    } else {
 
-    PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+      val model = diff.map { t => TwoSeriesPlot(t._1, t._2, t._4, t._5, t._6, t._7) }
 
-    val alertFunction = diff.map {t => TwoSeriesPlot(t._1, t._2 + threshold, t._4, t._5, t._6, t._7)}
+      PlotIT.plotBoth(model, "original wikitraffic", "regression model", page, outputPath)
 
-    PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+      val diffWithThreshold = diff.map { t => TwoSeriesPlot(t._3, threshold, t._4, t._5, t._6, t._7) }
+
+      PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+      
+
+      val alertFunction = diff.map { t => TwoSeriesPlot(t._1, t._2 + threshold, t._4, t._5, t._6, t._7) }
+
+      PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+    }
   }
 
 }
