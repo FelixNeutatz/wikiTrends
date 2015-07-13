@@ -23,34 +23,33 @@ import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.core.fs.FileSystem.WriteMode
 
 object PlotPageRegression extends App {
 
   override def main(args: Array[String]) {
     super.main(args)
     plotPage(args(0), args(1), args(2), args(3), args(4).toBoolean)
-  } 
+  }
 
-  def plotPage(inputPath: String, projectName: String, page: String, outputPath: String, generatePlots: Boolean) = {
+  def plotPage(pageFile : String, projectName: String, page: String, outputPath: String, generatePlots: Boolean) = {
 
-    implicit val env = ExecutionEnvironment.getExecutionEnvironment    
+    implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val data = WikiUtils.readWikiTrafficCSV(inputPath, " ").filter( t => t.projectName.equals(projectName) && t.pageTitle.equals(page))
-    
+
+    val data = WikiUtils.readWikiTrafficCSV(pageFile, " ").filter( t => t.projectName.equals(projectName) && t.pageTitle.equals(page))
+
     if (data.count() == 0) {
       throw new Exception("Page not found")
     }
     
-    val result = Regression.applyRegression(data)
-
-    val diff = result._1
-    val threshold = result._2
-    
-    if (!generatePlots) {
-      result._1.map { t => (t._1, t._2, t._3, t._4, t._5, t._6, t._7, threshold) }.writeAsCsv(outputPath + "plot", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+    if(!generatePlots) {
+      data.writeAsCsv(outputPath + "csv_plot_filter", fieldDelimiter = " ")
       env.execute()
     } else {
+      val result = Regression.applyRegression(data, false)
+
+      val diff = result._1
+      val threshold = result._2
 
       val model = diff.map { t => TwoSeriesPlot(t._1, t._2, t._4, t._5, t._6, t._7) }
 

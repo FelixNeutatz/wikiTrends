@@ -20,6 +20,7 @@ package io.sanfran.wikiTrends.extraction.flink
 
 import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.core.fs.FileSystem.WriteMode
 
 object PlotPageMovingAverage extends App {
 
@@ -37,32 +38,41 @@ object PlotPageMovingAverage extends App {
       sliceSize = 24 //in hours
     }
 
-    plotPage(args(0), args(1), args(2), args(3))
+    plotPage(args(0), args(1), args(2), args(3), args(6).toBoolean)
   } 
 
-  def plotPage(inputPath : String, outputPath: String, projectName: String, page: String) = {
-
-
+  def plotPage(inputPath : String, outputPath: String, projectName: String, page: String, generatePlots: Boolean) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = WikiUtils.readWikiTrafficCSVTuple(inputPath, " ").filter( t => t._1.equals(projectName) && t._2.equals(page))
 
-    // 1        2     3      4       5               6               7               8                9           10            11               12                13    14    15  16
-    // project  name  counts traffic average_counts  average_traffic variance_counts variance_traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
-    val result = MovingAverageFlinkIteration.applyMovingAverage(data, windowSize, sliceSize, env)
-
-    val model = result.map {t => TwoSeriesPlot(t._3, t._5, t._13, t._14, t._15, t._16)}
-
-    PlotIT.plotBoth(model, "original wikitraffic", "moving average model", page, outputPath)
+    if (data.count() == 0) {
+      throw new Exception("Page not found")
+    }
     
-    val diffWithThreshold = result.map {t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16)}
+    if (!generatePlots) {
+      data.writeAsCsv(outputPath + "plot", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
+      env.execute()
+    }
+    else {
+      // 1        2     3      4       5               6               7               8                9           10            11               12                13    14    15  16
+      
+      // project  name  counts traffic average_counts  average_traffic variance_counts variance_traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
+      val result = MovingAverageFlinkIteration.applyMovingAverage(data, windowSize, sliceSize, env)
 
-    PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+      val model = result.map { t => TwoSeriesPlot(t._3, t._5, t._13, t._14, t._15, t._16) }
 
-    val alertFunction = result.map {t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16)}
+      PlotIT.plotBoth(model, "original wikitraffic", "moving average model", page, outputPath)
 
-    PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+      val diffWithThreshold = result.map { t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+
+      PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+
+      val alertFunction = result.map { t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+
+      PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+    }
   }
 
 }

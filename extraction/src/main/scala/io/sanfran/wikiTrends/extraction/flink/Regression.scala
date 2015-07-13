@@ -53,7 +53,7 @@ object Regression extends App {
     super.main(args)
     model(args(0), args(1), args(2))
   }
-  
+
   def applyRegression(data: DataSet[WikiTrafficID], gridSearch: Boolean = false) = {
     val startDate = data.reduce { (a, b) =>
       var result: WikiTrafficID = a
@@ -124,81 +124,72 @@ object Regression extends App {
     val regressionData = regressionData1.map { d => new RegressionData(d.logVisits, d.logVisits1, d.logVisits2, d.logVisits3, d.logVisits24, d.logVisits48) }
 
 
+    val statistics = dataHour.map {x => (x.visits, x.visits*x.visits, 1L)}
+            .reduce((a,b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
+            .map{ t => (t._1 / t._3.toDouble, Math.sqrt((t._2 / t._3) - ((t._1 / t._3.toDouble)*(t._1 / t._3.toDouble))))}
+            .collect().head
+    
+    val mean = -1.0 * statistics._1
+    val stddev = statistics._2
+    
     val trainingDS = regressionData.map { t =>
-      val x = new Array[Double](5)
-      x(0) = t.oneHourAgo
-      x(1) = t.twoHoursAgo
-      x(2) = t.threeHoursAgo
-      x(3) = t.twentyFourHoursAgo
-      x(4) = t.fourtyEightHoursAgo
+      val x = new Array[Double](6)
+      x(0) = (t.oneHourAgo + mean) / stddev
+      x(1) = (t.twoHoursAgo + mean) / stddev
+      x(2) = (t.threeHoursAgo + mean) / stddev
+      x(3) = (t.twentyFourHoursAgo + mean) / stddev
+      x(4) = (t.fourtyEightHoursAgo + mean) / stddev
+      x(5) = 1
 
-      new LabeledVector(t.y, new DenseVector(x))
+      new LabeledVector((t.y+ mean) / stddev, new DenseVector(x))
     }
 
     //trainingDS.print
 
-    val testDS = regressionData.map { t =>
-      val x = new Array[Double](5)
-      x(0) = t.oneHourAgo
-      x(1) = t.twoHoursAgo
-      x(2) = t.threeHoursAgo
-      x(3) = t.twentyFourHoursAgo
-      x(4) = t.fourtyEightHoursAgo
+    val testDS = trainingDS.map { t => t.vector}
 
-      new DenseVector(x)
-    }
+    var bestStepSize = 0.5
 
-    var bestStepSize = 0.000000005
-    
     if (gridSearch) {
+
       val map1 = new scala.collection.mutable.HashMap[Double, Double]()
 
       //find best step size by grid search
-      for (stepsize <- List(//0.5, 0.3, 0.1, 
-        //0.05, 0.03, 0.01, 
-        //0.005, 0.003, 0.001, 
-        //0.0005, 0.0003, 0.0001, 
-        //0.00005, 0.00003, 0.00001, 
-        //0.000005, 0.000003, 0.000001, 
-        //0.0000005, 0.0000003, 0.0000001,
-        //0.00000005, 0.00000003, 0.00000001,
-        0.000000005, 0.000000003, 0.000000001
-        //0.0000000005, 0.0000000003, 0.0000000001,
-        //0.00000000005, 0.00000000003, 0.00000000001,
-        //0.000000000005, 0.000000000003, 0.000000000001
+      for (stepsize <- List(
+      0.5, 0.3, 0.1, 
+      0.005, 0.003, 0.001
+      //0.0005, 0.0003, 0.0001, 
+      //0.00005, 0.00003, 0.00001, 
+      //0.000005, 0.000003, 0.000001, 
+      //0.0000005, 0.0000003, 0.0000001,
+      //0.00000005, 0.00000003, 0.00000001,
+      //0.000000005, 0.000000003, 0.000000001,
+      //0.0000000005, 0.0000000003, 0.0000000001,
+      //0.00000000005, 0.00000000003, 0.00000000001,
+      //0.000000000005, 0.000000000003, 0.000000000001
       )
       ) {
 
         val mlr = MultipleLinearRegression()
-            .setIterations(10)
+            .setIterations(20)
             .setStepsize(stepsize)
 
         mlr.fit(trainingDS)
 
         val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
         map1 += new Tuple2(stepsize, srs)
-
-        val predictions = mlr.predict(testDS)
       }
 
       bestStepSize = map1.toSeq.sortBy(_._1).reverse(0)._1
     }
-
+    
     //final run
     val mlr = MultipleLinearRegression()
-        .setIterations(10)
+        .setIterations(20)
         .setStepsize(bestStepSize)
 
 
     mlr.fit(trainingDS)
-
-    //val weightList = mlr.weightsOption.get.collect()
-
-    //val a = weightList(0)
-
-    //val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
-
-    //println("Squared error: " + srs)
 
     val predictions = mlr.predict(testDS)
 
@@ -206,7 +197,7 @@ object Regression extends App {
 
     val hourInformation = regressionData1.map { t => new Tuple2[Tuple5[Double, Double, Double, Double, Double], Long]((t.logVisits1, t.logVisits2, t.logVisits3, t.logVisits24, t.logVisits48), t.hourId) }
 
-    val predictionsWithTime = predictions.map { t => new Tuple2[Tuple5[Double, Double, Double, Double, Double], Double]((t.vector.apply(0), t.vector.apply(1), t.vector.apply(2), t.vector.apply(3), t.vector.apply(4)), t.label) }
+    val predictionsWithTime = predictions.map { t => new Tuple2[Tuple5[Double, Double, Double, Double, Double], Double](((t.vector.apply(0) * stddev) - mean, (t.vector.apply(1) * stddev) - mean, (t.vector.apply(2) * stddev) - mean, (t.vector.apply(3) * stddev) - mean, (t.vector.apply(4) * stddev) - mean), ((t.label * stddev) - mean)) }
         .distinct()
         .join(hourInformation)
         .where(0)
@@ -215,14 +206,9 @@ object Regression extends App {
         .where(0)
         .equalTo("hourId") { (a, b) => new DataHourIdTime(a._2, b.hourId, b.year, b.month, b.day, b.hour, b.visits) }
 
-    //PlotIT.plotBoth(predictionsWithTime)
-
     //val diff = predictionsWithTime.map( t => new DataHourIdTime(t.orginalVisits - t.visits, t.hourId,t.year, t.month, t.day, t.hour, t.orginalVisits))
     val diff = predictionsWithTime.map(t => (t.orginalVisits, t.visits, Math.abs(t.orginalVisits - t.visits), t.year, t.month, t.day, t.hour))
 
-
-
-    //PlotIT.plotDataPredictions(diff)
     /*
     val compression = 100
     val pageSize = 100
@@ -245,59 +231,46 @@ object Regression extends App {
         .reduce { (a,b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3) }
         .map { t => nStandarddev * Math.sqrt( (t._2 / t._3) - ((t._1 / t._3) * (t._1 / t._3)) ) + (t._1 / t._3) }
         .collect().head
-    
+
     (diff, threshold)
   }
 
   def model(pageFile : String, projectName: String, outputPath: String) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
-    
+
 
     val indata = WikiUtils.readWikiTrafficCSV(pageFile, " ").filter( t => t.projectName.equals(projectName))
-    
+
     val titles = indata.map(t => Tuple1(t.pageTitle))
-                     .distinct(0)
-                     .collect()
-    
+        .distinct(0)
+        .collect()
+
     var allAnomaliesPerDay : DataSet[AnomaliesPerDay] = null
-    
+
     var iteration = 0
     for (page <- titles) {
-      
+
       val data = indata.filter(t => t.pageTitle.equals(page._1))
 
-      //println("dat: " + data.collect())
-
       val result = applyRegression(data)
-      
+
       val diff = result._1
       val threshold = result._2
-
-      //PlotIT.plotDiffWithThreshold(diff, threshold, page._1)
 
       val anomaliesPerDay = diff.filter ( t => t._3 > threshold)
           .groupBy(3,4,5)
           .reduce{ (a,b) =>
-            (Math.max(a._1,b._1), Math.max(a._2,b._2), Math.max(a._3,b._3), a._4, a._5, a._6, a._7)
-          }
+        (Math.max(a._1,b._1), Math.max(a._2,b._2), Math.max(a._3,b._3), a._4, a._5, a._6, a._7)
+      }
           .map {t => new AnomaliesPerDay(projectName, page._1, t._4, t._5.toByte, t._6.toByte, t._1.toLong, t._3 / threshold, t._1 / t._2)}
           .filter { a => a.relativeToQuantile > 1 }
 
-      /*
-      if (iteration == 0) {
-        allAnomaliesPerDay = anomaliesPerDay
-      } else {
-        allAnomaliesPerDay = allAnomaliesPerDay.union(anomaliesPerDay)
-      }*/
       anomaliesPerDay.writeAsCsv(outputPath + "anomalies_for_" + iteration, writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
       iteration = iteration + 1
-      
-      //println("my count: " + allAnomaliesPerDay.count)
+
     }
 
-    //println(allAnomaliesPerDay.collect())
-    //allAnomaliesPerDay.writeAsCsv(outputPath + "anomalies", writeMode = WriteMode.OVERWRITE, fieldDelimiter = " ")
     env.execute()
   }
 
