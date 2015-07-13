@@ -63,15 +63,15 @@ object PlotPageMovingAverage extends App {
 
       val model = result.map { t => TwoSeriesPlot(t._3, t._5, t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(model, "original wikitraffic", "moving average model", page, outputPath)
+      PlotIT.plotBoth(model, "original traffic", "moving average model", page, outputPath)
 
       val diffWithThreshold = result.map { t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+      PlotIT.plotBoth(diffWithThreshold, "Difference: original traffic - moving average model", "threshold", page, outputPath)
 
       val alertFunction = result.map { t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+      PlotIT.plotBoth(alertFunction, "original traffic", "alert function", page, outputPath)
     }
   }
 

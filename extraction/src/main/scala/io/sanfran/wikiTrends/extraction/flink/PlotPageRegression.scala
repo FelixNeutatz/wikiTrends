@@ -53,16 +53,16 @@ object PlotPageRegression extends App {
 
       val model = diff.map { t => TwoSeriesPlot(t._1, t._2, t._4, t._5, t._6, t._7) }
 
-      PlotIT.plotBoth(model, "original wikitraffic", "regression model", page, outputPath)
+      PlotIT.plotBoth(model, "original traffic", "regression model", page, outputPath)
 
       val diffWithThreshold = diff.map { t => TwoSeriesPlot(t._3, threshold, t._4, t._5, t._6, t._7) }
 
-      PlotIT.plotBoth(diffWithThreshold, "Difference: original wikitraffic - regression model", "threshold", page, outputPath)
+      PlotIT.plotBoth(diffWithThreshold, "Difference: original traffic - regression model", "threshold", page, outputPath)
       
 
       val alertFunction = diff.map { t => TwoSeriesPlot(t._1, t._2 + threshold, t._4, t._5, t._6, t._7) }
 
-      PlotIT.plotBoth(alertFunction, "original wikitraffic", "alert function", page, outputPath)
+      PlotIT.plotBoth(alertFunction, "original traffic", "alert function", page, outputPath)
     }
   }
 
