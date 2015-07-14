@@ -41,6 +41,8 @@ case class DataHourIdTime(visits: Double, hourId: Long, year: Short, month: Shor
 
 case class TwoSeriesPlot(series1: Double, series2: Double, year: Short, month: Short, day: Short, hour: Short)
 
+case class ThreeSeriesPlot(series1: Double, series2: Double, series3: Double, year: Short, month: Short, day: Short, hour: Short)
+
 case class DataHourIdM1(hourId: Long, logVisits: Double, logVisits1: Double)
 case class DataHourIdM2(hourId: Long, logVisits: Double, logVisits1: Double, logVisits2: Double)
 case class DataHourIdM3(hourId: Long, logVisits: Double, logVisits1: Double, logVisits2: Double, logVisits3: Double)

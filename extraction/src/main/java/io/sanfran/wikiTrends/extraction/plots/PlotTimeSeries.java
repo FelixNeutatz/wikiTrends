@@ -23,6 +23,7 @@ import java.text.SimpleDateFormat;
 
 import javax.swing.JPanel;
 
+import org.apache.avro.generic.GenericData;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -35,18 +36,40 @@ import org.jfree.data.xy.XYDataset;
 import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 import java.awt.BasicStroke;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PlotTimeSeries extends ApplicationFrame {
 	
 	private static JFreeChart chart;
+	
+	private static List<Float> seriesWidth;
+	private static List<Color> seriesColor;
 
   public PlotTimeSeries(String title, TimeSeriesCollection data) {
     super(title);
+		seriesWidth = null;
+		seriesColor = null;
+		
     ChartPanel chartPanel = (ChartPanel) createPanel(data, title);
     chartPanel.setPreferredSize(new java.awt.Dimension(1024, 768));
     chartPanel.setMouseZoomable(true, false);
     setContentPane(chartPanel);
   }
+
+	public PlotTimeSeries(String title, TimeSeriesCollection data, List<Double> width, List<Color> colors) {
+		super(title);
+		seriesWidth = new ArrayList<Float>();
+		for (Double i: width) {
+			seriesWidth.add(i.floatValue());
+		}
+		seriesColor = colors;
+		
+		ChartPanel chartPanel = (ChartPanel) createPanel(data, title);
+		chartPanel.setPreferredSize(new java.awt.Dimension(1024, 768));
+		chartPanel.setMouseZoomable(true, false);
+		setContentPane(chartPanel);
+	}
 	
 	public JFreeChart getJFreeChart() {
 		return chart;
@@ -80,9 +103,16 @@ public class PlotTimeSeries extends ApplicationFrame {
       renderer.setBaseShapesVisible(false); // if you want visible dots -> true
       renderer.setBaseShapesFilled(false); // if you want visible dots -> true
 			
-			
-			renderer.setSeriesStroke(0,new BasicStroke(2.0f));
-			renderer.setSeriesStroke(1,new BasicStroke(2.0f));
+			if (seriesWidth != null) {
+				for (int i = 0; i < seriesWidth.size(); i++) {
+					renderer.setSeriesStroke(i, new BasicStroke(seriesWidth.get(i)));
+				}
+			}
+			if (seriesColor != null) {
+				for (int i = 0; i < seriesColor.size(); i++) {
+					renderer.setSeriesPaint(i, seriesColor.get(i));
+				}
+			}
 			
     }
 

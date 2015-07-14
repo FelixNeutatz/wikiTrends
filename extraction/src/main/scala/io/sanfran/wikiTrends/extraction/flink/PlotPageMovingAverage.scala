@@ -18,6 +18,8 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
+import java.awt.Color
+
 import io.sanfran.wikiTrends.extraction.WikiUtils
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -61,17 +63,17 @@ object PlotPageMovingAverage extends App {
       // project  name  counts traffic average_counts  average_traffic variance_counts variance_traffic diff_counts diff_traffic  times_std_counts times_std_traffic year  month day hour
       val result = MovingAverageFlinkIteration.applyMovingAverage(data, windowSize, sliceSize, env)
 
-      val model = result.map { t => TwoSeriesPlot(t._3, t._5, t._13, t._14, t._15, t._16) }
+      val model = result.map { t => TwoSeriesPlot(t._5, t._3, t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(model, "original traffic", "moving average model", page, outputPath)
+      PlotIT.plotBoth(model, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), page, outputPath)
 
       val diffWithThreshold = result.map { t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(diffWithThreshold, "Difference: original traffic - moving average model", "threshold", page, outputPath)
+      PlotIT.plotBoth(diffWithThreshold, ("Difference: original traffic - moving average model", Color.blue, 2.0), ("threshold", Color.red, 2.0), page, outputPath)
 
       val alertFunction = result.map { t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
 
-      PlotIT.plotBoth(alertFunction, "original traffic", "alert function", page, outputPath)
+      PlotIT.plotBoth(alertFunction, ("original traffic", Color.black, 2.0), ("alert function", Color.red, 2.0), page, outputPath)
     }
   }
 

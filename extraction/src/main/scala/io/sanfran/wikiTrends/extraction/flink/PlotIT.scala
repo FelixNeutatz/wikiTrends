@@ -18,6 +18,7 @@
 
 package io.sanfran.wikiTrends.extraction.flink
 
+import java.awt.Color
 import java.io.File
 
 import io.sanfran.wikiTrends.Config
@@ -27,6 +28,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment, DataSet}
 import org.jfree.chart.ChartUtilities
 import org.jfree.data.time.{TimeSeriesCollection, Hour, TimeSeries}
 import org.jfree.ui.RefineryUtilities
+import scala.collection.JavaConverters._
 
 object PlotIT extends App {
   
@@ -89,7 +91,35 @@ object PlotIT extends App {
     demo.setVisible(true)
   }
 
-  def plotBoth(data: DataSet[TwoSeriesPlot], series1Name: String, series2Name: String, page: String, output: String = null): Unit = {
+  def plotBoth(data: DataSet[TwoSeriesPlot], series1: (String, Color, Double) , series2: (String, Color, Double), page: String, output: String = null): Unit = {
+    val dataLocal = data.collect().toList
+    val s: TimeSeries = new TimeSeries(series1._1, classOf[Hour])
+    val s2: TimeSeries = new TimeSeries(series2._1, classOf[Hour])
+    for (t <- dataLocal) {
+      s.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series1)
+      s2.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series2)
+    }
+
+    val dataset: TimeSeriesCollection = new TimeSeriesCollection
+    dataset.addSeries(s)
+    dataset.addSeries(s2)
+    //dataset.setDomainIsPointsInTime(true)
+    
+    val colors = Seq(series1._2, series2._2).asJava
+    val widths = Seq(series1._3, series2._3).map( t => t:java.lang.Double).asJava
+
+    val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset, widths, colors)
+    
+    if (output != null) {
+      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1._1 + " - " + series2._1), demo.getJFreeChart, 1120, 700)
+    } else{
+      demo.pack()
+      RefineryUtilities.centerFrameOnScreen(demo)
+      demo.setVisible(true)
+    }
+  }
+  
+  def plotThree(data: DataSet[TwoSeriesPlot], series1Name: String, series2Name: String, page: String, output: String = null): Unit = {
     val dataLocal = data.collect().toList
     val s: TimeSeries = new TimeSeries(series1Name, classOf[Hour])
     val s2: TimeSeries = new TimeSeries(series2Name, classOf[Hour])
@@ -104,7 +134,7 @@ object PlotIT extends App {
     //dataset.setDomainIsPointsInTime(true)
 
     val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset)
-    
+
     if (output != null) {
       ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1Name + " - " + series2Name), demo.getJFreeChart, 1120, 700)
     } else{
