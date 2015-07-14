@@ -119,24 +119,64 @@ object PlotIT extends App {
     }
   }
   
-  def plotThree(data: DataSet[TwoSeriesPlot], series1Name: String, series2Name: String, page: String, output: String = null): Unit = {
+  def plotThree(data: DataSet[ThreeSeriesPlot], series1: (String, Color, Double) , series2: (String, Color, Double), series3: (String, Color, Double), page: String, output: String = null): Unit = {
     val dataLocal = data.collect().toList
-    val s: TimeSeries = new TimeSeries(series1Name, classOf[Hour])
-    val s2: TimeSeries = new TimeSeries(series2Name, classOf[Hour])
+    val s: TimeSeries = new TimeSeries(series1._1, classOf[Hour])
+    val s2: TimeSeries = new TimeSeries(series2._1, classOf[Hour])
+    val s3: TimeSeries = new TimeSeries(series3._1, classOf[Hour])
     for (t <- dataLocal) {
       s.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series1)
       s2.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series2)
+      s3.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series3)
     }
 
     val dataset: TimeSeriesCollection = new TimeSeriesCollection
     dataset.addSeries(s)
     dataset.addSeries(s2)
+    dataset.addSeries(s3)
     //dataset.setDomainIsPointsInTime(true)
 
-    val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset)
+    val colors = Seq(series1._2, series2._2, series3._2).asJava
+    val widths = Seq(series1._3, series2._3, series3._3).map( t => t:java.lang.Double).asJava
+
+    val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset, widths, colors)
 
     if (output != null) {
-      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1Name + " - " + series2Name), demo.getJFreeChart, 1120, 700)
+      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1._1 + " - " + series2._1 + " - " + series3._1), demo.getJFreeChart, 1120, 700)
+    } else{
+      demo.pack()
+      RefineryUtilities.centerFrameOnScreen(demo)
+      demo.setVisible(true)
+    }
+  }
+
+  def plotFour(data: DataSet[FourSeriesPlot], series1: (String, Color, Double) , series2: (String, Color, Double), series3: (String, Color, Double), series4: (String, Color, Double), page: String, output: String = null): Unit = {
+    val dataLocal = data.collect().toList
+    val s: TimeSeries = new TimeSeries(series1._1, classOf[Hour])
+    val s2: TimeSeries = new TimeSeries(series2._1, classOf[Hour])
+    val s3: TimeSeries = new TimeSeries(series3._1, classOf[Hour])
+    val s4: TimeSeries = new TimeSeries(series4._1, classOf[Hour])
+    for (t <- dataLocal) {
+      s.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series1)
+      s2.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series2)
+      s3.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series3)
+      s4.addOrUpdate(new Hour(t.hour, t.day, t.month, t.year), t.series4)
+    }
+
+    val dataset: TimeSeriesCollection = new TimeSeriesCollection
+    dataset.addSeries(s)
+    dataset.addSeries(s2)
+    dataset.addSeries(s3)
+    dataset.addSeries(s4)
+    //dataset.setDomainIsPointsInTime(true)
+
+    val colors = Seq(series1._2, series2._2, series3._2, series4._2).asJava
+    val widths = Seq(series1._3, series2._3, series3._3, series4._3).map( t => t:java.lang.Double).asJava
+
+    val demo = new PlotTimeSeries("Wikipedia Traffic - \""+ page + "\"", dataset, widths, colors)
+
+    if (output != null) {
+      ChartUtilities.saveChartAsPNG(new File(output + page + "_" + series1._1 + " - " + series2._1 + " - " + series3._1 + " - " + series4._1), demo.getJFreeChart, 1120, 700)
     } else{
       demo.pack()
       RefineryUtilities.centerFrameOnScreen(demo)

@@ -53,17 +53,17 @@ object PlotPageRegression extends App {
       val threshold = result._2
 
       val model = diff.map { t => TwoSeriesPlot(t._2, t._1, t._4, t._5, t._6, t._7) }
-
-      PlotIT.plotBoth(model, ("regression model", Color.cyan, 1.0), ("original traffic", Color.black, 2.0), page, outputPath)
+      PlotIT.plotBoth(model, ("regression model", Color.orange, 1.0), ("original traffic", Color.black, 2.0), page, outputPath)
 
       val diffWithThreshold = diff.map { t => TwoSeriesPlot(t._3, threshold, t._4, t._5, t._6, t._7) }
-
-      PlotIT.plotBoth(diffWithThreshold, ("Difference: original traffic - regression model", Color.blue, 2.0), ("threshold", Color.red, 2.0), page, outputPath)
+      PlotIT.plotBoth(diffWithThreshold, ("residuals", Color.blue, 2.0), ("anomaly threshold", Color.red, 2.0), page, outputPath)
       
-
       val alertFunction = diff.map { t => TwoSeriesPlot(t._1, t._2 + threshold, t._4, t._5, t._6, t._7) }
+      PlotIT.plotBoth(alertFunction, ("original traffic", Color.black, 2.0), ("anomaly threshold", Color.red, 2.0), page, outputPath)
 
-      PlotIT.plotBoth(alertFunction, ("original traffic", Color.black, 2.0), ("alert function", Color.red, 2.0), page, outputPath)
+
+      val model1 = diff.map { t => ThreeSeriesPlot(t._2, t._2 + threshold, t._1, t._4, t._5, t._6, t._7) }
+      PlotIT.plotThree(model1, ("regression model", Color.orange, 1.0), ("anomaly threshold", Color.red, 2.0), ("original traffic", Color.black, 2.0), page, outputPath)
     }
   }
 

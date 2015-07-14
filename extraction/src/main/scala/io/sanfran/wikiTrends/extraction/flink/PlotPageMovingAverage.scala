@@ -64,16 +64,20 @@ object PlotPageMovingAverage extends App {
       val result = MovingAverageFlinkIteration.applyMovingAverage(data, windowSize, sliceSize, env)
 
       val model = result.map { t => TwoSeriesPlot(t._5, t._3, t._13, t._14, t._15, t._16) }
-
       PlotIT.plotBoth(model, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), page, outputPath)
 
       val diffWithThreshold = result.map { t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+      PlotIT.plotBoth(diffWithThreshold, ("residuals", Color.blue, 2.0), ("anomaly threshold", Color.red, 2.0), page, outputPath)
 
-      PlotIT.plotBoth(diffWithThreshold, ("Difference: original traffic - moving average model", Color.blue, 2.0), ("threshold", Color.red, 2.0), page, outputPath)
-
+      /*      
       val alertFunction = result.map { t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
-
-      PlotIT.plotBoth(alertFunction, ("original traffic", Color.black, 2.0), ("alert function", Color.red, 2.0), page, outputPath)
+      PlotIT.plotBoth(alertFunction, ("original traffic", Color.black, 2.0), ("anomaly threshold", Color.red, 2.0), page, outputPath)
+      
+      val alertFunctionWithLowerBound = result.map { t => ThreeSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._5 - 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+      PlotIT.plotThree(alertFunctionWithLowerBound, ("original traffic", Color.black, 2.0), ("upper anomaly threshold", Color.red, 2.0), ("lower anomaly threshold", Color.red, 2.0), page, outputPath)
+      */
+      val alertFunctionWithLowerBoundAndAverage = result.map { t => FourSeriesPlot(t._5, t._3, t._5 + 3 * Math.sqrt(t._7), t._5 - 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+      PlotIT.plotFour(alertFunctionWithLowerBoundAndAverage, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), ("upper anomaly threshold", Color.red, 2.0), ("lower anomaly threshold", Color.red, 2.0), page, outputPath)
     }
   }
 
