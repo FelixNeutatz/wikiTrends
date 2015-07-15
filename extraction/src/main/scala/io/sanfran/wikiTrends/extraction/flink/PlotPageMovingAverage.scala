@@ -40,10 +40,10 @@ object PlotPageMovingAverage extends App {
       sliceSize = 24 //in hours
     }
 
-    plotPage(args(0), args(1), args(2), args(3), args(6).toBoolean)
+    plotPage(args(0), args(1), args(2), args(3), args(6).toBoolean, args(7))
   } 
 
-  def plotPage(inputPath : String, outputPath: String, projectName: String, page: String, generatePlots: Boolean) = {
+  def plotPage(inputPath : String, outputPath: String, projectName: String, page: String, generatePlots: Boolean, title: String) = {
 
     implicit val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -64,10 +64,10 @@ object PlotPageMovingAverage extends App {
       val result = MovingAverageFlinkIteration.applyMovingAverage(data, windowSize, sliceSize, env)
 
       val model = result.map { t => TwoSeriesPlot(t._5, t._3, t._13, t._14, t._15, t._16) }
-      PlotIT.plotBoth(model, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), page, outputPath)
+      PlotIT.plotBoth(model, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), title, outputPath)
 
       val diffWithThreshold = result.map { t => TwoSeriesPlot(t._9, 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
-      PlotIT.plotBoth(diffWithThreshold, ("residuals", Color.blue, 2.0), ("anomaly threshold", Color.red, 2.0), page, outputPath)
+      PlotIT.plotBoth(diffWithThreshold, ("residuals", Color.blue, 2.0), ("anomaly threshold", Color.red, 2.0), title, outputPath)
 
       /*      
       val alertFunction = result.map { t => TwoSeriesPlot(t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
@@ -77,7 +77,10 @@ object PlotPageMovingAverage extends App {
       PlotIT.plotThree(alertFunctionWithLowerBound, ("original traffic", Color.black, 2.0), ("upper anomaly threshold", Color.red, 2.0), ("lower anomaly threshold", Color.red, 2.0), page, outputPath)
       */
       val alertFunctionWithLowerBoundAndAverage = result.map { t => FourSeriesPlot(t._5, t._3, t._5 + 3 * Math.sqrt(t._7), t._5 - 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
-      PlotIT.plotFour(alertFunctionWithLowerBoundAndAverage, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), ("upper anomaly threshold", Color.red, 2.0), ("lower anomaly threshold", Color.red, 2.0), page, outputPath)
+      PlotIT.plotFour(alertFunctionWithLowerBoundAndAverage, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), ("upper anomaly threshold", Color.red, 2.0), ("lower anomaly threshold", Color.red, 2.0), title, outputPath)
+
+      val alertFunctionWithAverage = result.map { t => ThreeSeriesPlot(t._5, t._3, t._5 + 3 * Math.sqrt(t._7), t._13, t._14, t._15, t._16) }
+      PlotIT.plotThree(alertFunctionWithAverage, ("moving average model", Color.orange, 3.0), ("original traffic", Color.black, 2.0), ("anomaly threshold", Color.red, 2.0), title, outputPath)
     }
   }
 

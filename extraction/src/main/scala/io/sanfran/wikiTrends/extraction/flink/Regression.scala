@@ -151,7 +151,7 @@ object Regression extends App {
 
     val testDS = trainingDS.map { t => t.vector}
 
-    var bestStepSize = 0.5
+    var bestStepSize = 1.0
 
     if (gridSearch) {
 
@@ -159,17 +159,12 @@ object Regression extends App {
 
       //find best step size by grid search
       for (stepsize <- List(
+      500.0, 300.0, 100.0,
+      50.0, 30.0, 10.0,
+      5.0,3.0,1.0,
       0.5, 0.3, 0.1, 
+      0.05, 0.03, 0.01,
       0.005, 0.003, 0.001
-      //0.0005, 0.0003, 0.0001, 
-      //0.00005, 0.00003, 0.00001, 
-      //0.000005, 0.000003, 0.000001, 
-      //0.0000005, 0.0000003, 0.0000001,
-      //0.00000005, 0.00000003, 0.00000001,
-      //0.000000005, 0.000000003, 0.000000001,
-      //0.0000000005, 0.0000000003, 0.0000000001,
-      //0.00000000005, 0.00000000003, 0.00000000001,
-      //0.000000000005, 0.000000000003, 0.000000000001
       )
       ) {
 
@@ -181,9 +176,13 @@ object Regression extends App {
 
         val srs = mlr.squaredResidualSum(trainingDS).collect().apply(0)
         map1 += new Tuple2(stepsize, srs)
+        
+        println("stepsize: " + stepsize + " -> " + srs)
       }
+      
+      bestStepSize = map1.toSeq.sortBy(_._2).head._1
 
-      bestStepSize = map1.toSeq.sortBy(_._1).reverse(0)._1
+      println("stepsize: " + bestStepSize + " here ho ")
     }
     
     //final run
